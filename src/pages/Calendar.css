@@ -1,0 +1,89 @@
+/* === Custom Calendar Theme for Bluetick CRM === */
+
+/* Base tweaks for rounded, modern feel */
+.rbc-calendar {
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: var(--tw-shadow-lg);
+  transition: all 0.3s ease;
+}
+
+/* 🕶️ DARK MODE */
+.dark .rbc-calendar {
+  background-color: #0f172a; /* slate-900 */
+  color: #f1f5f9; /* light text */
+}
+
+/* Header (weekdays) */
+.dark .rbc-header {
+  background-color: #1e293b; /* slate-800 */
+  color: #e2e8f0; /* gray-200 */
+  border-bottom: 1px solid #334155;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Toolbar (Month / Week / Day switcher) */
+.dark .rbc-toolbar {
+  background-color: #1e293b;
+  border-bottom: 1px solid #334155;
+  color: #e2e8f0;
+  padding: 0.5rem 1rem;
+}
+
+.dark .rbc-toolbar button {
+  background-color: #334155;
+  color: #f8fafc;
+  border-radius: 8px;
+  margin: 0 4px;
+  transition: all 0.2s ease;
+}
+
+.dark .rbc-toolbar button:hover {
+  background-color: #2563eb; /* blue-600 */
+  color: #fff;
+}
+
+/* Days background */
+.dark .rbc-day-bg,
+.dark .rbc-time-slot {
+  border-color: #1e293b !important;
+}
+
+/* Highlight current day */
+.dark .rbc-today {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+/* Events */
+.dark .rbc-event {
+  border: none;
+  color: white !important;
+  border-radius: 8px;
+  font-weight: 500;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.dark .rbc-event:hover {
+  transform: scale(1.02);
+}
+
+/* Off-range (days outside current month) */
+.dark .rbc-off-range-bg {
+  background-color: #0b1220;
+}
+
+/* Month cells hover effect */
+.dark .rbc-day-bg:hover {
+  background-color: rgba(59, 130, 246, 0.15);
+  cursor: pointer;
+}
+
+/* Smooth theme transitions */
+.rbc-calendar,
+.rbc-event,
+.rbc-header,
+.rbc-toolbar {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
