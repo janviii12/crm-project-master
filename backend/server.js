@@ -251,6 +251,10 @@ io.on('connection', (socket) => {
   });
 });
 
+
+app.get("/version-check", (req, res) => {
+  res.send("CRM UPDATED VERSION 27 FEB 2026");
+});
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
