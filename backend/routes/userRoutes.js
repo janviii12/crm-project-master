@@ -10,7 +10,7 @@ import {
   uploadAvatar
 } from "../controllers/userController.js";
 import upload from "../middleware/upload.js";
-import { authenticateToken } from "../middleware/auth.js";
+import { authenticateToken, requireAdmin } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -29,8 +29,8 @@ router.put("/:id", updateUser);
 // Delete user
 router.delete("/:id", deleteUser);
 
-// Get staff
-router.get("/staff", getStaffUsers);
+// Get staff - Admin only
+router.get("/staff", requireAdmin, getStaffUsers);
 
 // Update profile
 router.put("/:id/profile", updateProfile);

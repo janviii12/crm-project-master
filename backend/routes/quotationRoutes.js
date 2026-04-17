@@ -4,9 +4,12 @@ import {
   getQuotations,
   updateQuotation,
   deleteQuotation,
-  generatePDF
+  generatePDF,
+  uploadQuotationFile,
+  downloadUploadedFile
 } from '../controllers/quotationController.js';
 import { authenticateToken } from '../middleware/auth.js';
+import upload from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -52,5 +55,21 @@ router.get('/:id/pdf', (req, res, next) => {
   }
   next();
 }, generatePDF);
+
+// Upload quotation file (admin, manager, executive)
+router.post('/:id/upload', (req, res, next) => {
+  if (!['admin', 'manager', 'executive'].some(role => req.user.roles.includes(role))) {
+    return res.status(403).json({ message: 'Access denied' });
+  }
+  next();
+}, upload.single('file'), uploadQuotationFile);
+
+// Download uploaded file (admin, manager, executive)
+router.get('/:id/download', (req, res, next) => {
+  if (!['admin', 'manager', 'executive'].some(role => req.user.roles.includes(role))) {
+    return res.status(403).json({ message: 'Access denied' });
+  }
+  next();
+}, downloadUploadedFile);
 
 export default router;

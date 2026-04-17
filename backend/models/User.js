@@ -10,6 +10,11 @@ const userSchema = new mongoose.Schema({
     },
     message: 'Invalid role provided'
   }},
+  currentStatus: {
+    type: String,
+    enum: ['online', 'offline', 'lunch', 'meeting', 'outside_work'],
+    default: 'offline'
+  },
   isDevLead: { type: Boolean, default: false },
   isChatModerator: { type: Boolean, default: false },
   name: { type: String },

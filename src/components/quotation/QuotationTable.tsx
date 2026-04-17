@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Edit, Trash2, Download, Search, Filter } from 'lucide-react';
+import { Edit, Trash2, Download, Search, Filter, Upload, FileText } from 'lucide-react';
 import { servicesData } from '@/data/servicesData';
 
 interface QuotationTableProps {
@@ -12,9 +12,11 @@ interface QuotationTableProps {
   onEdit: (quotation: any) => void;
   onDelete: (id: string) => void;
   onDownload: (id: string) => void;
+  onUpload: (quotation: any) => void;
+  onDownloadUploaded: (id: string) => void;
 }
 
-const QuotationTable = ({ quotations, onEdit, onDelete, onDownload }: QuotationTableProps) => {
+const QuotationTable = ({ quotations, onEdit, onDelete, onDownload, onUpload, onDownloadUploaded }: QuotationTableProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [serviceFilter, setServiceFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('');
@@ -30,6 +32,13 @@ const QuotationTable = ({ quotations, onEdit, onDelete, onDownload }: QuotationT
 
     return matchesSearch && matchesService && matchesDate;
   });
+
+  // Helper to format file size
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
 
   return (
     <div className="space-y-4">
@@ -76,6 +85,7 @@ const QuotationTable = ({ quotations, onEdit, onDelete, onDownload }: QuotationT
               <TableHead>Title</TableHead>
               <TableHead>Service</TableHead>
               <TableHead>Total Amount</TableHead>
+              <TableHead>Uploaded File</TableHead>
               <TableHead>Created Date</TableHead>
               <TableHead>Last Edited</TableHead>
               <TableHead>Actions</TableHead>
@@ -84,7 +94,7 @@ const QuotationTable = ({ quotations, onEdit, onDelete, onDownload }: QuotationT
           <TableBody>
             {filteredQuotations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No quotations found
                 </TableCell>
               </TableRow>
@@ -97,6 +107,23 @@ const QuotationTable = ({ quotations, onEdit, onDelete, onDownload }: QuotationT
                   <TableCell>{quotation.title}</TableCell>
                   <TableCell>{servicesData[quotation.serviceKey]?.title || quotation.serviceKey}</TableCell>
                   <TableCell>₹{quotation.totalAmount?.toFixed(2)}</TableCell>
+                  <TableCell>
+                    {quotation.uploadedFile ? (
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-muted-foreground" />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium truncate max-w-[120px]" title={quotation.uploadedFile.fileName}>
+                            {quotation.uploadedFile.fileName}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatFileSize(quotation.uploadedFile.fileSize)} • {new Date(quotation.uploadedFile.uploadedAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">No file</span>
+                    )}
+                  </TableCell>
                   <TableCell>{new Date(quotation.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell>
                     {quotation.lastEditedBy ? (
@@ -119,13 +146,34 @@ const QuotationTable = ({ quotations, onEdit, onDelete, onDownload }: QuotationT
                         variant="outline"
                         size="sm"
                         onClick={() => onEdit(quotation)}
+                        title="Edit"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
+                      {quotation.uploadedFile ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onDownloadUploaded(quotation._id)}
+                          title="Download uploaded file"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onUpload(quotation)}
+                          title="Upload file"
+                        >
+                          <Upload className="w-4 h-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => onDownload(quotation._id)}
+                        title="Generate PDF"
                       >
                         <Download className="w-4 h-4" />
                       </Button>
@@ -133,6 +181,7 @@ const QuotationTable = ({ quotations, onEdit, onDelete, onDownload }: QuotationT
                         variant="outline"
                         size="sm"
                         onClick={() => onDelete(quotation._id)}
+                        title="Delete"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>

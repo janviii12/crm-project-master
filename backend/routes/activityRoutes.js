@@ -1,106 +1,82 @@
 import express from 'express';
-import UserActivity from '../models/UserActivity.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { 
+  getStaffActivities, 
+  getTodayStats, 
+  updateActivityEndTime, 
+  logActivity, 
+  updateActivity, 
+  deleteActivity 
+} from '../controllers/activityController.js';
 
 const router = express.Router();
 
-// Apply authentication globally to all routes
+// ✅ PUBLIC Quick Actions FIRST - NO AUTH (lunch, logout)
+router.post('/activity-log', logActivity);
+
+// ✅ PUBLIC: Post-logout activity display (no auth)
+router.get('/', getStaffActivities);
+router.get('/today-summary', getTodayStats);
+router.get('/today-stats', getTodayStats); // Frontend alias - fixes 404
+
+// ✅ PROTECTED: Mutations + admin routes
 router.use(authenticateToken);
 
-// Get recent activities for admin/manager monitoring
+router.put('/end-time/:activityId', updateActivityEndTime);
+router.put('/:activityId/update', updateActivity);
+router.delete('/:activityId', deleteActivity);
+
 router.get('/recent', async (req, res) => {
   try {
-    // Only allow admin and manager roles
-    if (!req.user.roles.includes('admin') && !req.user.roles.includes('manager')) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin or manager role required.'
-      });
+    if (!req.user.roles?.includes('admin') && !req.user.roles?.includes('manager')) {
+      return res.status(403).json({ success: false, message: 'Admin/Manager required' });
     }
 
     const { limit = 50, activityType } = req.query;
-    const limitNum = parseInt(limit, 10);
+    const limitNum = parseInt(String(limit), 10);
 
     let filter = {};
-    if (activityType) {
-      filter.activityType = activityType;
-    }
+    if (activityType) filter.activityType = activityType;
 
     const activities = await UserActivity.find(filter)
       .populate('userId', 'name email roles')
       .sort({ createdAt: -1 })
       .limit(limitNum);
 
-    return res.status(200).json({
-      success: true,
-      data: activities
-    });
+    return res.status(200).json({ success: true, data: activities });
   } catch (error) {
     console.error('getRecentActivities error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// Get activity statistics
 router.get('/stats', async (req, res) => {
   try {
-    // Only allow admin and manager roles
-    if (!req.user.roles.includes('admin') && !req.user.roles.includes('manager')) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin or manager role required.'
-      });
+    if (!req.user.roles?.includes('admin') && !req.user.roles?.includes('manager')) {
+      return res.status(403).json({ success: false, message: 'Admin/Manager required' });
     }
 
     const { period = '24h' } = req.query;
-
     let dateFilter = new Date();
     switch (period) {
-      case '1h':
-        dateFilter.setHours(dateFilter.getHours() - 1);
-        break;
-      case '24h':
-        dateFilter.setHours(dateFilter.getHours() - 24);
-        break;
-      case '7d':
-        dateFilter.setDate(dateFilter.getDate() - 7);
-        break;
-      case '30d':
-        dateFilter.setDate(dateFilter.getDate() - 30);
-        break;
-      default:
-        dateFilter.setHours(dateFilter.getHours() - 24);
+      case '1h': dateFilter.setHours(dateFilter.getHours() - 1); break;
+      case '24h': dateFilter.setHours(dateFilter.getHours() - 24); break;
+      case '7d': dateFilter.setDate(dateFilter.getDate() - 7); break;
+      case '30d': dateFilter.setDate(dateFilter.getDate() - 30); break;
     }
 
     const stats = await UserActivity.aggregate([
       { $match: { createdAt: { $gte: dateFilter } } },
-      {
-        $group: {
-          _id: '$activityType',
-          count: { $sum: 1 },
-          lastActivity: { $max: '$createdAt' }
-        }
-      },
+      { $group: { _id: '$activityType', count: { $sum: 1 }, lastActivity: { $max: '$createdAt' } } },
       { $sort: { count: -1 } }
     ]);
 
-    return res.status(200).json({
-      success: true,
-      data: stats,
-      period
-    });
+    return res.status(200).json({ success: true, data: stats, period });
   } catch (error) {
     console.error('getActivityStats error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
 export default router;
+

@@ -56,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await axiosInstance.post('/api/login', { email, password });
+const response = await axiosInstance.post('/api/auth/login', { email, password });
       const { accessToken, user: userData } = response.data;
       // ✅ Store data
       localStorage.setItem('token', accessToken);
@@ -74,35 +74,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      await axiosInstance.post('/logout');
+      const response = await axiosInstance.post('/api/auth/logout');
+      const { logoutConfirmation } = response.data;
+      
+      // Resume audio context if suspended  
+      if (Howler.ctx?.state === 'suspended') {
+        Howler.ctx.resume();
+      }
+
+      // Immediate cleanup + sound + toast + hard redirect on success
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      delete axios.defaults.headers.common['Authorization'];
+      setUser(null);
+      
+      // Sound
+      if (Howler.ctx?.state === 'suspended') {
+        Howler.ctx.resume();
+      }
+      // Dispatch loginSuccess for MyDailyActivity sync (post-login)
+      if (localStorage.getItem('token')) {
+        const loginEvent = new CustomEvent('loginSuccess');
+        window.dispatchEvent(loginEvent);
+      }
+      
+      const { playEmotion } = useAIEmotion();
+      playEmotion("logout");
+      
+      // Toast
+      const finalizedCount = logoutConfirmation?.updatedActivities?.length || 0;
+      toast.success(
+        finalizedCount > 0 
+          ? `Logged out safely! Finalized ${finalizedCount} activities 👋` 
+          : 'Logged out safely 👋'
+      );
+
+      // 🔧 TRIGGER ACTIVITY REFETCH - notifies MyDailyActivity/SummaryCard/Timeline
+      const logoutEvent = new CustomEvent('activitiesRefetch', { 
+        detail: logoutConfirmation.updatedActivities || []
+      });
+      window.dispatchEvent(logoutEvent);
+      
+      // 🚀 DELAYED redirect (3s) - ensure socket/DB sync + activitiesRefetch
+      toast.success('Activities finalized, redirecting...');
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 3000);
     } catch (error) {
       console.error('Logout error:', error);
+      // Fallback immediate cleanup
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      delete axios.defaults.headers.common['Authorization'];
+      setUser(null);
+      navigate('/login');
+      toast.error('Logged out (check activities manually)');
     }
-
-    // Resume audio context if suspended
-    if (Howler.ctx?.state === 'suspended') {
-      Howler.ctx.resume();
-    }
-
-    // Play logout sound using emotion hook
-    const { playEmotion } = useAIEmotion();
-    playEmotion("logout");
-
-    // Clear data immediately
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    delete axios.defaults.headers.common['Authorization'];
-    setUser(null);
-
-    // Show logout message with fade-out
-    toast.info('Logging out safely… see you soon 👋', {
-      duration: 2000,
-      onDismiss: () => {
-        // Redirect after toast
-        navigate('/login');
-      }
-    });
   };
+
 
   const updateUser = (userData: Partial<User>) => {
     setUser(prev => prev ? { ...prev, ...userData } : null);

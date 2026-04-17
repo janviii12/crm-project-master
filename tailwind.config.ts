@@ -19,10 +19,19 @@ export default {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        pastel: {
+          gray: '#E2E8F0',
+          blue: '#60A5FA',
+          green: '#4ADE80',
+          yellow: '#FCD34D',
+          orange: '#F97316',
+          pink: '#EC4899',
+        },
         primary: {
           DEFAULT: "#4F46E5",
           foreground: "#FFFFFF",
         },
+
         secondary: {
           DEFAULT: "#22D3EE",
           foreground: "#0F172A",

@@ -5,7 +5,7 @@ const userActivitySchema = new mongoose.Schema({
   activityType: {
     type: String,
     required: true,
-    enum: ['login', 'logout', 'token_refresh', 'customer_update', 'document_verify', 'task_update', 'chat_message', 'interaction_create', 'interaction_view', 'interaction_update', 'interaction_delete', 'interaction_image_upload', 'note_create', 'note_edit', 'note_share', 'note_delete', 'note_view']
+enum: ['login', 'logout', 'token_refresh', 'customer_update', 'document_verify', 'task_update', 'chat_message', 'interaction_create', 'interaction_view', 'interaction_update', 'interaction_delete', 'interaction_image_upload', 'note_create', 'note_edit', 'note_share', 'note_delete', 'note_view', 'lunch_start', 'lunch_end', 'meeting_start', 'meeting_end', 'outside_work_start', 'outside_work_end', 'status_change']
   },
   description: { type: String },
   ipAddress: { type: String },

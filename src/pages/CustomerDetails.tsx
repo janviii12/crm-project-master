@@ -7,9 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Mail, Phone, MapPin, FileText, Download, Check, X, Loader2, Pause } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import axiosInstance from '@/lib/axiosInstance';
 import { useAuth } from '@/contexts/AuthContext';
-import { API_BASE_URL } from '../config';
+
 
 const CustomerDetails = () => {
   const { id } = useParams();
@@ -23,31 +23,34 @@ const CustomerDetails = () => {
   const handleSendEmail = async (status: string, remarks?: string) => {
     setSendingEmail(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/customers/${id}/send-email`, {
+      const response = await axiosInstance.post(`/api/customers/${id}/send-email`, {
+
         status,
         remarks
       });
       if (response.data.success) {
-        alert(`Email sent successfully to ${customer.email}`);
+        alert(`✅ Email sent successfully to ${customer.email} (ID: ${response.data.messageId})`);
       }
-    } catch (error) {
-      console.error('Error sending email:', error);
-      alert('Failed to send email');
+    } catch (error: any) {
+      console.error('Error sending email:', error.response?.data || error.message);
+      alert(`Failed to send email: ${error.response?.data?.message || error.message}`);
     } finally {
       setSendingEmail(false);
     }
   };
 
+
   // Fetch customer details
   useEffect(() => {
     const fetchCustomer = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/customers/${id}`);
+        const response = await axiosInstance.get(`/api/customers/${id}`);
+
         if (response.data.success) {
           setCustomer(response.data.data);
         }
-      } catch (error) {
-        console.error('Error fetching customer:', error);
+      } catch (error: any) {
+        console.error('Error fetching customer:', error.response?.data || error.message);
       } finally {
         setLoading(false);
       }
@@ -57,6 +60,7 @@ const CustomerDetails = () => {
       fetchCustomer();
     }
   }, [id]);
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -75,7 +79,7 @@ const CustomerDetails = () => {
 
   const handleApprove = async () => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/customers/${id}/status`, {
+      const response = await axiosInstance.put(`$/api/customers/${id}/status`, {
         status: 'verified'
       });
       if (response.data.success) {
@@ -90,7 +94,7 @@ const CustomerDetails = () => {
 
   const handleReject = async () => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/customers/${id}/status`, {
+      const response = await axiosInstance.put(`/api/customers/${id}/status`, {
         status: 'rejected'
       });
       if (response.data.success) {
@@ -111,7 +115,7 @@ const CustomerDetails = () => {
     if (!holdRemarks.trim()) return;
 
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/customers/${id}/status`, {
+      const response = await axiosInstance.put(`/api/customers/${id}/status`, {
         status: 'on_hold',
         remarks: holdRemarks
       });
@@ -251,7 +255,7 @@ const CustomerDetails = () => {
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => window.open(`${API_BASE_URL}/api/uploads/${file.filePath.replace(/^(uploads\/)+/, '')}`, '_blank')}
+                        onClick={() => window.open(`/api/uploads/${file.filePath.replace(/^(uploads\/)+/, '')}`, '_blank')}
                       >
                         <Download className="w-4 h-4" />
                       </Button>
@@ -273,7 +277,7 @@ const CustomerDetails = () => {
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => window.open(`${API_BASE_URL}/api/uploads/${customer.filePath.replace(/uploads\//g, '')}`, '_blank')}
+                        onClick={() => window.open(`/api/uploads/${customer.filePath.replace(/uploads\//g, '')}`, '_blank')}
                       >
                         <Download className="w-4 h-4" />
                       </Button>

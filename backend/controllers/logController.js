@@ -9,10 +9,15 @@ export const updateAuditPassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
 
     // Get admin settings
-    const adminSettings = await AdminSettings.findOne();
-    if (!adminSettings) {
-      return res.status(500).json({ success: false, message: 'Admin settings not configured' });
-    }
+    let adminSettings = await AdminSettings.findOne();
+
+if (!adminSettings) {
+  adminSettings = new AdminSettings({
+    auditPassword: await bcrypt.hash("admin123", 10)
+  });
+
+  await adminSettings.save();
+}
 
     // Verify current password
     const isCurrentPasswordValid = await bcrypt.compare(currentPassword, adminSettings.auditPassword);
@@ -65,10 +70,15 @@ export const verifyAuditPassword = async (req, res) => {
     }
 
     // Get admin settings
-    const adminSettings = await AdminSettings.findOne();
-    if (!adminSettings) {
-      return res.status(500).json({ success: false, message: 'Admin settings not configured' });
-    }
+  let adminSettings = await AdminSettings.findOne();
+
+if (!adminSettings) {
+  adminSettings = new AdminSettings({
+    auditPassword: await bcrypt.hash("admin123", 10)
+  });
+
+  await adminSettings.save();
+}
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, adminSettings.auditPassword);

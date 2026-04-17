@@ -1,7 +1,8 @@
 // backend/routes/customerRoutes.js
 import express from 'express';
 import upload from '../middleware/upload.js';
-import { createCustomer, getCustomers, getCustomerById, updateCustomerStatus, assignWork, reassignTask, sendEmailNotification, getCustomerByEmail } from '../controllers/customerController.js';
+import { createCustomer, getCustomers, getCustomerById, updateCustomerStatus, assignWork, reassignTask, sendEmailNotification, getCustomerByEmail, testEmailConnection } from '../controllers/customerController.js';
+
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -33,4 +34,8 @@ router.patch('/:id/reassign', reassignTask);
 // Send email notification
 router.post('/:id/send-email', sendEmailNotification);
 
+// Test SMTP connection (admin only)
+router.post('/test-email', testEmailConnection);
+
 export default router;
+

@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Download, Edit, Trash2, Search, Home } from 'lucide-react';
+import { Plus, Download, Edit, Trash2, Search, Home, Upload, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { servicesData } from '@/data/servicesData';
 import QuotationForm from '@/components/quotation/QuotationForm';
@@ -25,6 +25,11 @@ const QuotationManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingQuotation, setEditingQuotation] = useState(null);
+  // Upload dialog state
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [selectedQuotationForUpload, setSelectedQuotationForUpload] = useState(null);
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchQuotations();
@@ -143,6 +148,83 @@ const QuotationManagement = () => {
     }
   };
 
+  // Handle file upload
+  const handleUploadFile = async () => {
+    if (!uploadFile || !selectedQuotationForUpload) {
+      toast.error('Please select a file to upload');
+      return;
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', uploadFile);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/quotations/${selectedQuotationForUpload._id}/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+      
+      const data = await response.json();
+      if (response.ok) {
+        setQuotations(quotations.map(q => q._id === selectedQuotationForUpload._id ? data : q));
+        setIsUploadOpen(false);
+        setUploadFile(null);
+        setSelectedQuotationForUpload(null);
+        toast.success('File uploaded successfully');
+      } else {
+        toast.error(data.message || 'Failed to upload file');
+      }
+    } catch (error) {
+      toast.error('Error uploading file');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Handle download uploaded file
+  const handleDownloadUploadedFile = async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/quotations/${id}/download`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        // Extract filename from content-disposition header or use default
+        const contentDisposition = response.headers.get('content-disposition');
+        let fileName = `quotation-file-${id}`;
+        if (contentDisposition) {
+          const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
+          if (fileNameMatch) fileName = fileNameMatch[1];
+        }
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        const data = await response.json();
+        toast.error(data.message || 'Failed to download file');
+      }
+    } catch (error) {
+      toast.error('Error downloading file');
+    }
+  };
+
+  // Open upload dialog for a quotation
+  const openUploadDialog = (quotation) => {
+    setSelectedQuotationForUpload(quotation);
+    setIsUploadOpen(true);
+  };
+
   const filteredQuotations = quotations.filter(quotation =>
     quotation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     quotation.quotationNumber.toLowerCase().includes(searchTerm.toLowerCase())
@@ -188,6 +270,8 @@ const QuotationManagement = () => {
         }}
         onDelete={handleDeleteQuotation}
         onDownload={handleDownloadPDF}
+        onUpload={openUploadDialog}
+        onDownloadUploaded={handleDownloadUploadedFile}
       />
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
@@ -205,6 +289,48 @@ const QuotationManagement = () => {
               setEditingQuotation(null);
             }}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload File Dialog */}
+      <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Quotation File</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Quotation</Label>
+              <p className="text-sm font-medium mt-1">
+                {selectedQuotationForUpload?.quotationNumber} - {selectedQuotationForUpload?.title}
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="file-upload">Select File (PDF or Word)</Label>
+              <Input
+                id="file-upload"
+                type="file"
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                className="mt-1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Supported formats: PDF, DOC, DOCX
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => {
+                setIsUploadOpen(false);
+                setUploadFile(null);
+                setSelectedQuotationForUpload(null);
+              }}>
+                Cancel
+              </Button>
+              <Button onClick={handleUploadFile} disabled={uploading || !uploadFile}>
+                {uploading ? 'Uploading...' : 'Upload'}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

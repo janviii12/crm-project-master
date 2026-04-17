@@ -18,6 +18,8 @@ const __dirname = path.dirname(__filename);
 
 // Create Nodemailer transporter
 const createTransporter = () => {
+   console.log("EMAIL_USER:", process.env.EMAIL_USER);
+  console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "Loaded ✅" : "Not Loaded ❌");
   return nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
     port: parseInt(process.env.EMAIL_PORT || '587', 10),
@@ -44,58 +46,13 @@ export const createCustomer = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Name, email, and phone are required' });
     }
 
-    // Check if customer already exists
+    // Check if customer already exists by email
     const existingCustomer = await Customer.findOne({ email });
     if (existingCustomer) {
-      // Update existing customer instead of creating new one
-      const updateData = {
-        name,
-        phone,
-        type,
-        address,
-        status: 'pending', // Reset status to pending for new submission
-        submittedAt: new Date(), // Update submission time
-      };
-
-      // Handle file upload for existing customer - ADD to existing files array
-      if (req.file) {
-        const newFile = {
-          filePath: path.basename(req.file.path),
-          fileOriginalName: req.file.originalname,
-          uploadedAt: new Date()
-        };
-        updateData.$push = { files: newFile };
-      }
-
-      const updatedCustomer = await Customer.findByIdAndUpdate(
-        existingCustomer._id,
-        updateData,
-        { new: true }
-      );
-
-      // Create notification for staff/admin about new registration submission
-      try {
-        const staffUsers = await User.find({ roles: { $in: ['admin', 'manager'] } });
-        for (const staff of staffUsers) {
-          await createNotification(
-            staff._id,
-            'info',
-            'New Registration Submitted',
-            `${updatedCustomer.name} has submitted their registration for review.`,
-            `/customers/${updatedCustomer._id}`
-          );
-        }
-      } catch (notificationError) {
-        console.error('Failed to create staff notification:', notificationError);
-      }
-
-      return res.status(200).json({
-        success: true,
-        message: 'Registration updated successfully',
-        data: updatedCustomer,
-      });
+      console.log(`⚠️ Customer with email ${email} already exists (ID: ${existingCustomer._id}). Creating new record instead of updating.`);
     }
 
+    // Always create NEW customer record (don't update existing)
     // File handling for new customer
     let files = [];
     if (req.file) {
@@ -106,7 +63,7 @@ export const createCustomer = async (req, res) => {
       }];
     }
 
-    // Create new customer
+    // Create new customer record
     const customer = new Customer({
       name,
       email,
@@ -116,9 +73,15 @@ export const createCustomer = async (req, res) => {
       address,
       files,
       status: 'pending',
-      submittedAt: null, // No submittedAt for initial customer creation
+      submittedAt: new Date(), // Always set submittedAt for new submissions
     });
     await customer.save();
+
+    console.log(`✅ New customer created: ${customer.name} (${customer._id})`);
+
+
+    // ✅ Removed duplicate code block - now always creates new customer
+
 
     // Create user account for the customer
     try {
@@ -176,6 +139,22 @@ console.log('Welcome email with credentials sent successfully to:', customer.ema
       // Don't fail the customer creation if user creation fails
     }
 
+    // Create notification for staff/admin about new customer
+    try {
+      const staffUsers = await User.find({ roles: { $in: ['admin', 'manager'] } });
+      for (const staff of staffUsers) {
+        await createNotification(
+          staff._id,
+          'info',
+          'New Customer Registration',
+          `${customer.name} (${customer.email}) has registered for services.`,
+          `/customers/${customer._id}`
+        );
+      }
+    } catch (notificationError) {
+      console.error('Failed to create staff notification:', notificationError);
+    }
+
     return res.status(201).json({
       success: true,
       message: 'Customer created successfully',
@@ -187,6 +166,7 @@ console.log('Welcome email with credentials sent successfully to:', customer.ema
     return res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 };
+
 
 // Get all customers with pagination
 export const getCustomers = async (req, res) => {
@@ -516,8 +496,9 @@ export const getCustomerByEmail = async (req, res) => {
   }
 };
 
-// Send email notification
+// Send email notification with detailed error handling
 export const sendEmailNotification = async (req, res) => {
+  console.log("🔥 sendEmailNotification API hit");
   try {
     const { id } = req.params;
     const { status, remarks } = req.body;
@@ -527,85 +508,133 @@ export const sendEmailNotification = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
 
-    // --- inside sendEmailNotification function ---
+    console.log(`📧 Attempting to send ${status} email to ${customer.email}`);
 
-const transporter = createTransporter();
+    const transporter = createTransporter();
 
-let subject = '';
-let message = '';
+    // Verify transporter connection
+    try {
+      await transporter.verify();
+      console.log('✅ SMTP connection verified successfully');
+    } catch (verifyErr) {
+      console.error('❌ SMTP verification failed:', verifyErr.message);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'SMTP configuration error - cannot connect to email server',
+        error: verifyErr.message 
+      });
+    }
 
-switch (status) {
-  case 'verified':
-    subject = 'Application Verified - Next Steps';
-    message = `
-      <p>Hi ${customer.name},</p>
+    let subject = '';
+    let message = '';
 
-      <p>Congratulations! Your application has been successfully verified.</p>
-
-      <p>Our team will contact you within the next 48 hours to guide you through the next steps.</p>
-
-      <p>Thank you for your patience and trust in our services.</p>
-
-      <p>Best regards,<br/>CRM Team</p>
-    `;
-    break;
-  case 'rejected':
-    subject = 'Application Status Update';
-    message = `
-      <p>Hi ${customer.name},</p>
-
-      <p>We regret to inform you that your application has been rejected.</p>
-
-      <p>If you have any questions or require assistance, please reach out to our support team.</p>
-
-      <p>Best regards,<br/>CRM Team</p>
-    `;
-    break;
-  case 'on_hold':
-    subject = 'Application Status Update';
-    message = `
-      <p>Hi ${customer.name},</p>
-
-      <p>Your application is currently on hold.</p>
-      ${remarks ? `<p><strong>Reason:</strong> ${remarks}</p>` : ''}
-      <p>Our team will review it again soon and update you accordingly.</p>
-
-      <p>Thank you for your patience.</p>
-
-      <p>Best regards,<br/>CRM Team</p>
-    `;
-    break;
-  default:
-    subject = 'Application Status Update';
-    message = `
-      <p>Hi ${customer.name},</p>
-
-      <p>Your application status has been updated to: <strong>${status}</strong>.</p>
-
-      <p>For any questions, feel free to contact our support team.</p>
-
-      <p>Best regards,<br/>CRM Team</p>
-    `;
-}
-
+    switch (status) {
+      case 'verified':
+        subject = 'Application Verified - Next Steps';
+        message = `
+          <p>Hi ${customer.name},</p>
+          <p>Congratulations! Your application has been successfully verified.</p>
+          <p>Our team will contact you within the next 48 hours to guide you through the next steps.</p>
+          <p>Thank you for your patience and trust in our services.</p>
+          <p>Best regards,<br/>CRM Team</p>
+        `;
+        break;
+      case 'rejected':
+        subject = 'Application Status Update';
+        message = `
+          <p>Hi ${customer.name},</p>
+          <p>We regret to inform you that your application has been rejected.</p>
+          <p>If you have any questions or require assistance, please reach out to our support team.</p>
+          <p>Best regards,<br/>CRM Team</p>
+        `;
+        break;
+      case 'on_hold':
+        subject = 'Application Status Update';
+        message = `
+          <p>Hi ${customer.name},</p>
+          <p>Your application is currently on hold.</p>
+          ${remarks ? `<p><strong>Reason:</strong> ${remarks}</p>` : ''}
+          <p>Our team will review it again soon and update you accordingly.</p>
+          <p>Thank you for your patience.</p>
+          <p>Best regards,<br/>CRM Team</p>
+        `;
+        break;
+      default:
+        subject = 'Application Status Update';
+        message = `
+          <p>Hi ${customer.name},</p>
+          <p>Your application status has been updated to: <strong>${status}</strong>.</p>
+          <p>For any questions, feel free to contact our support team.</p>
+          <p>Best regards,<br/>CRM Team</p>
+        `;
+    }
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: `"CRM Team" <${process.env.EMAIL_USER}>`,
       to: customer.email,
       subject: subject,
       html: message,
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('Status email sent successfully:', info.messageId);
+    console.log('✅ Status email sent successfully:', info.messageId, 'to:', customer.email);
 
     return res.status(200).json({
       success: true,
       message: 'Email sent successfully',
+      messageId: info.messageId
     });
 
   } catch (err) {
-    console.error('sendEmailNotification error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to send email', error: err.message });
+    console.error('❌ sendEmailNotification detailed error:', {
+      message: err.message,
+      code: err.code,
+      response: err.response?.data,
+      command: err.command,
+      stack: err.stack
+    });
+    
+    let userMessage = 'Failed to send email';
+    if (err.code === 'EAUTH') {
+      userMessage = 'Email authentication failed - check EMAIL_USER/PASS in .env';
+    } else if (err.code === 'ECONNECTION') {
+      userMessage = 'Cannot connect to SMTP server - check EMAIL_HOST/PORT';
+    }
+    
+    return res.status(500).json({ 
+      success: false, 
+      message: userMessage,
+      debug: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 };
+
+
+// Test SMTP connection endpoint
+export const testEmailConnection = async (req, res) => {
+  try {
+    const transporter = createTransporter();
+    
+    // Test connection
+    await transporter.verify();
+    
+    return res.status(200).json({
+      success: true,
+      message: 'SMTP connection successful!',
+      config: {
+        host: process.env.EMAIL_HOST,
+        port: process.env.EMAIL_PORT,
+        secure: process.env.EMAIL_SECURE === 'true'
+      }
+    });
+  } catch (err) {
+    console.error('SMTP test failed:', err.message);
+    return res.status(500).json({
+      success: false,
+      message: 'SMTP test failed',
+      error: err.message
+    });
+  }
+};
+
+

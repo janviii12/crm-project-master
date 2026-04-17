@@ -13,6 +13,6 @@ const refreshLimiter = rateLimit({
 
 router.post("/login", loginUser);
 router.post("/refresh-token", refreshLimiter, refreshToken);
-router.post("/logout", logoutUser);
+router.post("/auth/logout", logoutUser);
 
 export default router;

@@ -8,6 +8,14 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Upload directory for quotation files
+const uploadDir = path.join(__dirname, '..', 'uploads', 'quotations');
+
+// Ensure uploads directory exists
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 // Helper to generate quotation number
 const generateQuotationNumber = async () => {
   const lastQuotation = await Quotation.findOne().sort({ createdAt: -1 });
@@ -301,6 +309,84 @@ export const generatePDF = async (req, res) => {
         fs.unlinkSync(filePath);
       });
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Upload quotation file (Word or PDF)
+export const uploadQuotationFile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const quotation = await Quotation.findById(id);
+    
+    if (!quotation) {
+      return res.status(404).json({ message: "Quotation not found" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    // Check file type - allow only PDF and Word documents
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      // Delete the uploaded file if type is not allowed
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ message: "Only PDF and Word files are allowed" });
+    }
+
+    // If there's an existing uploaded file, delete it
+    if (quotation.uploadedFile && quotation.uploadedFile.filePath) {
+      const existingFilePath = path.join(__dirname, '..', quotation.uploadedFile.filePath);
+      if (fs.existsSync(existingFilePath)) {
+        fs.unlinkSync(existingFilePath);
+      }
+    }
+
+    // Update quotation with uploaded file info
+    quotation.uploadedFile = {
+      fileName: req.file.originalname,
+      filePath: path.relative(path.join(__dirname, '..'), req.file.path),
+      fileType: req.file.mimetype,
+      fileSize: req.file.size,
+      uploadedAt: new Date(),
+      uploadedBy: req.user.username
+    };
+
+    await quotation.save();
+    res.json(quotation);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Download uploaded quotation file
+export const downloadUploadedFile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const quotation = await Quotation.findById(id);
+    
+    if (!quotation) {
+      return res.status(404).json({ message: "Quotation not found" });
+    }
+
+    if (!quotation.uploadedFile || !quotation.uploadedFile.filePath) {
+      return res.status(404).json({ message: "No file uploaded for this quotation" });
+    }
+
+    const filePath = path.join(__dirname, '..', quotation.uploadedFile.filePath);
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "File not found on server" });
+    }
+
+    res.download(filePath, quotation.uploadedFile.fileName);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

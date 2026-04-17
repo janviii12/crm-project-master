@@ -16,7 +16,8 @@ import {
   StickyNote,
   Calendar,
   FileSpreadsheet,
-  DollarSign
+  DollarSign,
+  Activity
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -70,6 +71,8 @@ const Sidebar = () => {
     { path: '/interactions', label: 'Interactions', icon: MessageSquare, roles: ['admin','manager','executive'] },
     { path: '/calendar', label: 'Calendar', icon: Calendar, roles: ['admin', 'manager', 'executive'] },
     { path: '/QuotationManagement', label: 'Quotations', icon: FileText, roles: ['admin', 'manager', 'executive'] },
+    { path: '/leads', label: 'Leads', icon: Users, roles: ['admin', 'manager'] },
+
     { path: '/task-management', label: 'Task Management', icon: ClipboardList, roles: ['admin', 'manager'] },
     { path: '/my-tasks', label: 'My Tasks', icon: FileText, roles: ['executive'] },
     // { path: '/my-tasks', label: 'Quotation', icon: FileText, roles: ['executive','admin','manager'] },
@@ -102,6 +105,8 @@ const Sidebar = () => {
     { path: '/settings', label: 'Settings', icon: Settings, roles: ['admin', 'manager', 'executive', 'client', 'developer'] },
     { path: '/excel-collaboration', label: 'Excel Collaboration', icon: FileSpreadsheet, roles: ['admin', 'manager', 'executive'] },
     { path: '/petty-cash-dashboard', label: 'Petty Cash', icon: DollarSign, roles: ['manager'] },
+    { path: '/staff-activity', label: 'Staff Activity', icon: Activity, roles: ['admin', 'manager'] },
+    { path: '/my-activity', label: 'My Activity', icon: Activity, roles: ['executive'] },
     { path: '/boss-expense-report', label: 'Expense Reports', icon: FileText, roles: ['admin'] },
   ];
 

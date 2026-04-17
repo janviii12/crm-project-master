@@ -51,6 +51,15 @@ const LiveActivityFeed: React.FC = () => {
       case 'login':
       case 'logout':
         return <User className="w-4 h-4" />;
+      case 'lunch_start':
+      case 'lunch_end':
+        return <span className="text-xl">🍱</span>;
+      case 'meeting_start':
+      case 'meeting_end':
+        return <span className="text-xl">📅</span>;
+      case 'outside_work_start':
+      case 'outside_work_end':
+        return <span className="text-xl">💼</span>;
       case 'customer_update':
       case 'task_update':
         return <FileText className="w-4 h-4" />;
@@ -69,6 +78,15 @@ const LiveActivityFeed: React.FC = () => {
     switch (activityType) {
       case 'login':
         return 'bg-green-500';
+      case 'lunch_start':
+      case 'lunch_end':
+        return 'bg-yellow-500';
+      case 'meeting_start':
+      case 'meeting_end':
+        return 'bg-blue-500';
+      case 'outside_work_start':
+      case 'outside_work_end':
+        return 'bg-orange-500';
       case 'logout':
         return 'bg-gray-500';
       case 'customer_update':

@@ -30,7 +30,8 @@ import excelRoutes from "./routes/excelRoutes.js"; // Excel routes
 import pushRoutes from "./routes/pushRoutes.js"; // Push notification routes
 import publicKeyRoutes from "./routes/publicKeyRoutes.js"; // VAPID public key routes
 import pettyCashRoutes from "./routes/pettyCashRoutes.js"; // Petty cash routes
-import taskRoutes from "./routes/taskRoutes.js"; // Task routes
+import taskRoutes from "./routes/taskRoutes.js";
+import leadsRoutes from "./routes/leadsRoutes.js";
 import { checkReminders } from "./controllers/followUpController.js";
 connectDB();
 const app = express();
@@ -73,44 +74,31 @@ app.use(express.json());
  * To store more CRM-related details (like customer info, company details, deals, notes, etc.),
  * we are using a separate "Customer" model & API (customerRoutes).
  */
-// Authentication (Login / Register)
-app.use("/api", authRoutes);
-// CRM - Customer Data
-app.use('/api/customers', customerRoutes);
-// User Management
+// Authentication (Login / Register) - FIXED ROUTE ORDER
+// API routes FIRST (before redirects!)
+console.log('✅ Activity routes mounted at /api/activities');
+app.use('/api/activities', activityRoutes); // QuickAction logout - FIXED 404
+app.use('/api/auth', authRoutes); // Login
+app.use('/api/customers', customerRoutes); 
 app.use('/api/users', userRoutes);
-// Admin Logs
 app.use('/api/logs', logRoutes);
-// Notifications
 app.use('/api/notifications', notificationRoutes);
-// Chat System
 app.use('/api/chat', chatRoutes);
-// Health Check
 app.use('/api/health', healthRoutes);
-// Admin Routes
 app.use('/api/admin', adminRoutes);
-// Staff Routes
 app.use('/api/staff', staffRoutes);
-// Note Routes
 app.use('/api/notes', noteRoutes);
-// Activity Routes
-app.use('/api/activities', activityRoutes);
-// Follow-up Routes
 app.use('/api/followups', followUpRoutes);
-// Quotation Routes
 app.use('/api/quotations', quotationRoutes);
-// Excel Routes
 app.use('/api/excel', excelRoutes);
-// Push Notification Routes
-app.use('/api/push', pushRoutes);
-// VAPID Public Key Routes
+app.use('/api/push', pushRoutes); 
 app.use('/api/push', publicKeyRoutes);
-// Petty Cash Routes
 app.use('/api/petty-cash', pettyCashRoutes);
-// Task Routes
 app.use('/api/tasks', taskRoutes);
-// Aadhaar OCR Routes
 app.use('/api/aadhaar', aadhaarRoutes);
+app.use('/api/leads', leadsRoutes);
+
+// Redirects LAST\nimport redirectRoutes from './routes/redirectRoutes.js';\napp.use(redirectRoutes);
 // Serve static files from uploads directory
 app.use('/api/uploads', express.static('uploads'));
 

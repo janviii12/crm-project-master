@@ -36,6 +36,37 @@ const addIndexes = async () => {
     await Log.createIndex({ userId: 1 }, { name: 'userId_index' });
     console.log('✓ Created userId index on logs collection');
 
+    // UserActivity indexes - CRITICAL for endTime/duration queries
+    const UserActivity = mongoose.connection.db.collection('useractivities');
+    
+    // Primary: userId + timestamp (desc) - pagination + recency
+    await UserActivity.createIndex(
+      { userId: 1, timestamp: -1 }, 
+      { name: 'userId_timestamp_desc' }
+    );
+    console.log('✓ Created userId + timestamp index on useractivities');
+    
+    // Activity pairing: userId + activityType + open activities (endTime null/missing)
+    await UserActivity.createIndex(
+      { userId: 1, activityType: 1, 'metadata.endTime': 1 }, 
+      { name: 'userId_activityType_endTime' }
+    );
+    console.log('✓ Created userId + activityType + endTime index on useractivities');
+    
+    // Today summary: userId + timestamp range
+    await UserActivity.createIndex(
+      { userId: 1, timestamp: 1 }, 
+      { name: 'userId_timestamp_asc' }
+    );
+    console.log('✓ Created userId + timestamp(asc) index on useractivities');
+    
+    // Logout session queries
+    await UserActivity.createIndex(
+      { userId: 1, activityType: 1, 'metadata.sessionEndTime': 1 },
+      { name: 'userId_logout_sessionEndTime' }
+    );
+    console.log('✓ Created userId + logout session index on useractivities');
+
     console.log('All indexes added successfully!');
   } catch (error) {
     console.error('Error adding indexes:', error);

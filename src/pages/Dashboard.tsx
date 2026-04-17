@@ -6,6 +6,7 @@ import LiveActivityFeed from '@/components/LiveActivityFeed';
 import SecurityAlerts from '@/components/SecurityAlerts';
 import UserRoleIndicators from '@/components/UserRoleIndicators';
 import LoginReminderPopup from '@/components/LoginReminderPopup';
+
 import { useAuth } from '@/contexts/AuthContext';
 import { useAIEmotion } from '@/hooks/useAIEmotion';
 import { useAIPersonality } from '@/hooks/useAIPersonality';
@@ -23,7 +24,7 @@ const Dashboard = () => {
   const { playEmotion } = useAIEmotion();
   const { setAmbientLighting } = useAIPersonality();
   const { subscribe } = usePushNotifications();
-  const welcomeRef = useRef<HTMLSpanElement>(null);
+  const welcomeRef = useRef(null);
   const [stats, setStats] = useState({
     totalCustomers: 0,
     verifiedDocuments: 0,
@@ -42,11 +43,11 @@ const Dashboard = () => {
   
   // Reminder popup state
   const [showReminderPopup, setShowReminderPopup] = useState(false);
-  const [reminderDates, setReminderDates] = useState<any[]>([]);
+  const [reminderDates, setReminderDates] = useState([]);
   const [reminderPopupLoaded, setReminderPopupLoaded] = useState(false);
 
-  // 🎉 NEW YEAR CELEBRATION MODE - Easy to disable after festival 🎉
-  const newYearMode = true; // Set to false to disable all New Year features
+  // New Year celebration mode
+  const newYearMode = true;
   const [showNewYearOverlay, setShowNewYearOverlay] = useState(false);
 
   const closeNewYear = () => {
@@ -60,8 +61,7 @@ const Dashboard = () => {
   }, [showNewYearOverlay]);
 
   const startFloatingEmojis = () => {
-    // 🎉 FESTIVE EMOJIS FOR NEW YEAR CELEBRATION 🎉
-    const emojis = ['✨', '🎊', '🥂', '🎆', '🎇', '🎈', '🎉', '🌟', '💫', '⭐', '🎊', '🥂', '🎆'];
+    const emojis = ['✨', '🎊', '🥂', '🎆', '🎇', '🎈', '🎉', '🌟', '💫', '⭐'];
     const container = document.querySelector('.ny-content');
 
     emojis.forEach((emoji, index) => {
@@ -96,41 +96,35 @@ const Dashboard = () => {
       }
     }
   }, [user]);
-// end ............
-
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Request push notification permission and subscribe
         if (user) {
           await subscribe();
         }
 
-        // Fetch customers data
         const customersResponse = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/customers`);
         if (customersResponse.data.success) {
           const customers = customersResponse.data.data;
           const totalCustomers = customers.length;
-          const verifiedDocuments = customers.filter((c: any) => c.status === 'verified').length;
-          const pendingVerifications = customers.filter((c: any) => c.status === 'pending').length;
-          const issues = customers.filter((c: any) => c.status === 'rejected' || c.status === 'on_hold').length;
+          const verifiedDocuments = customers.filter((c) => c.status === 'verified').length;
+          const pendingVerifications = customers.filter((c) => c.status === 'pending').length;
+          const issues = customers.filter((c) => c.status === 'rejected' || c.status === 'on_hold').length;
 
-          // For staff2/staff3
-          const assignedTasks = customers.filter((c: any) =>
+          const assignedTasks = customers.filter((c) =>
             c.status === 'verified' && c.assignedStaff && c.assignedStaff._id === user?.id
           ).length;
-          const inProgress = assignedTasks; // Assuming all assigned are in progress
-          const completed = customers.filter((c: any) =>
+          const inProgress = assignedTasks;
+          const completed = customers.filter((c) =>
             c.status === 'completed' && c.assignedStaff && c.assignedStaff._id === user?.id
           ).length;
 
-          // For client
-          const submittedForms = customers.filter((c: any) => c.user === user?.id).length;
-          const pendingReview = customers.filter((c: any) =>
+          const submittedForms = customers.filter((c) => c.user === user?.id).length;
+          const pendingReview = customers.filter((c) =>
             c.user === user?.id && c.status === 'pending'
           ).length;
-          const approved = customers.filter((c: any) =>
+          const approved = customers.filter((c) =>
             c.user === user?.id && c.status === 'verified'
           ).length;
 
@@ -147,8 +141,7 @@ const Dashboard = () => {
             approved
           });
 
-          // Set recent activities from customers
-          const activities = customers.slice(0, 4).map((customer: any) => ({
+          const activities = customers.slice(0, 4).map((customer) => ({
             action: customer.status === 'verified' ? 'Document verified' :
                    customer.status === 'pending' ? 'Form submitted' :
                    customer.status === 'rejected' ? 'Document rejected' : 'Status updated',
@@ -161,13 +154,10 @@ const Dashboard = () => {
         console.error('Error fetching dashboard data:', error);
       } finally {
         setLoading(false);
-        // Play welcome sound and greeting after data loads
         if (!welcomePlayed) {
           setTimeout(() => {
-            playEmotion("success"); // Use success sound for welcome
+            playEmotion("success");
             setWelcomePlayed(true);
-
-            // Type welcome message
             if (welcomeRef.current) {
               const typed = new Typed(welcomeRef.current, {
                 strings: [`Welcome back, ${user?.name || 'User'}! 👋`],
@@ -185,7 +175,6 @@ const Dashboard = () => {
     }
   }, [user, playEmotion, welcomePlayed, subscribe]);
 
-  // Fetch reminder dates for popup
   const fetchReminderDates = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -197,7 +186,7 @@ const Dashboard = () => {
         }
       });
       
-const result = response.data;
+      const result = response.data;
       if (result.success && result.data && result.data.length > 0) {
         const today = new Date().toISOString().split('T')[0];
         const popupShownKey = `reminderPopupShown_${user?.id}_${today}`;
@@ -225,28 +214,28 @@ const result = response.data;
       value: stats.totalCustomers.toString(),
       icon: Users,
       trend: { value: '+12.5% from last month', isPositive: true },
-      color: 'primary' as const,
+      color: 'primary'
     },
     {
       title: 'Verified Documents',
       value: stats.verifiedDocuments.toString(),
       icon: FileCheck,
       trend: { value: '+8.2% from last month', isPositive: true },
-      color: 'success' as const,
+      color: 'success'
     },
     {
       title: 'Pending Verifications',
       value: stats.pendingVerifications.toString(),
       icon: Clock,
       trend: { value: '-3 from yesterday', isPositive: true },
-      color: 'warning' as const,
+      color: 'warning'
     },
     {
       title: 'Issues',
       value: stats.issues.toString(),
       icon: AlertCircle,
       trend: { value: '2 resolved today', isPositive: true },
-      color: 'destructive' as const,
+      color: 'destructive'
     },
   ];
 
@@ -282,8 +271,8 @@ const result = response.data;
           </p>
         </motion.div>
 
-        {/* Stats Grid - Show for admin and manager */}
-        {(user?.roles && (user.roles.includes('admin') || user.roles.includes('manager'))) && (
+        {/* Stats Grids for different roles */}
+        {(user?.roles?.includes('admin') || user?.roles?.includes('manager')) && (
           <motion.div
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
             initial={{ opacity: 0, y: 20 }}
@@ -291,120 +280,53 @@ const result = response.data;
             transition={{ delay: 0.4, duration: 0.5 }}
           >
             {adminStats.map((stat, index) => (
-              <motion.div
-                key={stat.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 * index, duration: 0.3 }}
-              >
-                <StatsCard {...stat} />
+              <motion.div key={stat.title} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 * index, duration: 0.3 }}>
+                {/* <StatsCard {...stat} /> */}
               </motion.div>
             ))}
           </motion.div>
         )}
 
-        {/* Executive View */}
-        {(user?.roles && user.roles.includes('executive')) && (
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-          >
-            <StatsCard
-              title="Assigned Tasks"
-              value={stats.assignedTasks.toString()}
-              icon={FileCheck}
-              trend={{ value: '+2 new today', isPositive: true }}
-              color="primary"
-            />
-            <StatsCard
-              title="In Progress"
-              value={stats.inProgress.toString()}
-              icon={Clock}
-              trend={{ value: '2 starting soon', isPositive: true }}
-              color="warning"
-            />
-            <StatsCard
-              title="Completed"
-              value={stats.completed.toString()}
-              icon={FileCheck}
-              trend={{ value: '+3 this week', isPositive: true }}
-              color="success"
-            />
+        {user?.roles?.includes('executive') && (
+          <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-6" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.5 }}>
+            <StatsCard title="Assigned Tasks" value={stats.assignedTasks.toString()} icon={FileCheck} trend={{ value: '+2 new today', isPositive: true }} color="primary" />
+            <StatsCard title="In Progress" value={stats.inProgress.toString()} icon={Clock} trend={{ value: '2 starting soon', isPositive: true }} color="warning" />
+            <StatsCard title="Completed" value={stats.completed.toString()} icon={FileCheck} trend={{ value: '+3 this week', isPositive: true }} color="success" />
           </motion.div>
         )}
 
-        {/* Client View */}
-        {user?.roles && user.roles.includes('client') && (
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-          >
-            <StatsCard
-              title="Submitted Forms"
-              value={stats.submittedForms.toString()}
-              icon={FileCheck}
-              color="primary"
-            />
-            <StatsCard
-              title="Pending Review"
-              value={stats.pendingReview.toString()}
-              icon={Clock}
-              color="warning"
-            />
-            <StatsCard
-              title="Approved"
-              value={stats.approved.toString()}
-              icon={FileCheck}
-              color="success"
-            />
+        {user?.roles?.includes('client') && (
+          <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-6" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.5 }}>
+            <StatsCard title="Submitted Forms" value={stats.submittedForms.toString()} icon={FileCheck} color="primary" />
+            <StatsCard title="Pending Review" value={stats.pendingReview.toString()} icon={Clock} color="warning" />
+            <StatsCard title="Approved" value={stats.approved.toString()} icon={FileCheck} color="success" />
           </motion.div>
         )}
 
-        {/* Developer and Admin View - Server Status Panel */}
-        {(user?.roles && (user.roles.includes('developer') || user.roles.includes('admin'))) || user?.isDevLead ? (
-          <motion.div
-            className="space-y-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.5 }}
-          >
+        {/* Server Status Panel for dev/admin */}
+        {(user?.roles?.includes('developer') || user?.roles?.includes('admin')) || user?.isDevLead && (
+          <motion.div className="space-y-6" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 0.5 }}>
             <ServerStatusPanel />
           </motion.div>
-        ) : null}
+        )}
+
+
 
         {/* User Role Indicators */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8, duration: 0.5 }}
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8, duration: 0.5 }}>
           <UserRoleIndicators />
         </motion.div>
 
         {/* Live Activity Feed and Security Alerts for Admin/Manager */}
-        {(user?.roles && (user.roles.includes('admin') || user.roles.includes('manager'))) && (
-          <motion.div
-            className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.0, duration: 0.5 }}
-          >
+        {(user?.roles?.includes('admin') || user?.roles?.includes('manager')) && (
+          <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.0, duration: 0.5 }}>
             <LiveActivityFeed />
             <SecurityAlerts />
           </motion.div>
         )}
 
-        {/* Recent Activity */}
-        <motion.div
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.2, duration: 0.5 }}
-        >
+        {/* Recent Activity & Quick Actions */}
+        <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2, duration: 0.5 }}>
           <Card>
             <CardHeader>
               <CardTitle>Recent Activity</CardTitle>
@@ -422,12 +344,8 @@ const result = response.data;
                   >
                     <div className="w-2 h-2 mt-2 rounded-full bg-primary" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">
-                        {activity.action}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {activity.user} • {activity.time}
-                      </p>
+                      <p className="text-sm font-medium text-foreground">{activity.action}</p>
+                      <p className="text-sm text-muted-foreground">{activity.user} • {activity.time}</p>
                     </div>
                   </motion.div>
                 ))}
@@ -442,7 +360,7 @@ const result = response.data;
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {user?.roles && user.roles.includes('admin') && (
+                {user?.roles?.includes('admin') && (
                   <>
                     <button className="w-full p-3 text-left rounded-lg border border-border hover:bg-accent transition-colors">
                       <p className="font-medium text-foreground">Add New User</p>
@@ -454,7 +372,7 @@ const result = response.data;
                     </button>
                   </>
                 )}
-                {(user?.roles && user.roles.includes('executive')) && (
+                {user?.roles?.includes('executive') && (
                   <>
                     <Link to="/my-tasks" className="block">
                       <button className="w-full p-3 text-left rounded-lg border border-border hover:bg-accent transition-colors">
@@ -466,13 +384,9 @@ const result = response.data;
                       <p className="font-medium text-foreground">Send Client Notification</p>
                       <p className="text-sm text-muted-foreground">Update clients on work progress</p>
                     </button>
-                    <button className="w-full p-3 text-left rounded-lg border border-border hover:bg-accent transition-colors">
-                      <p className="font-medium text-foreground">Mark Task Complete</p>
-                      <p className="text-sm text-muted-foreground">Update task status when finished</p>
-                    </button>
                   </>
                 )}
-                {user?.roles && user.roles.includes('client') && (
+                {user?.roles?.includes('client') && (
                   <>
                     <button className="w-full p-3 text-left rounded-lg border border-border hover:bg-accent transition-colors">
                       <p className="font-medium text-foreground">Submit New Form</p>
@@ -492,7 +406,7 @@ const result = response.data;
 
       {/* New Year Overlay */}
       {showNewYearOverlay && (
-        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <img
             src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExNTdhczZ0ejd3bjBxdmtmOGMxY3kxNjRyajVsbjZmdWU1cnRkZWo2bSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/IjmMzurYulKEw/giphy.gif"
             alt="New Year Fireworks"
@@ -504,7 +418,7 @@ const result = response.data;
             <p className="text-lg mb-6">May this year bring you success, happiness, and endless possibilities.</p>
             <button
               onClick={closeNewYear}
-              className={`${newYearMode ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600' : 'bg-primary hover:bg-primary/90'} text-white px-6 py-3 rounded-lg font-semibold transition-colors`}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
             >
               Let's Get Started! 🚀
             </button>
@@ -512,7 +426,7 @@ const result = response.data;
         </div>
       )}
 
-      {/* Reminder Popup in bottom corner */}
+      {/* Reminder Popup */}
       <LoginReminderPopup
         isOpen={showReminderPopup}
         onClose={() => setShowReminderPopup(false)}
@@ -522,10 +436,9 @@ const result = response.data;
           window.location.href = '/calendar';
         }}
       />
-
-      {/* end ....... */}
     </DashboardLayout>
   );
 };
 
 export default Dashboard;
+

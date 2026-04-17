@@ -2,6 +2,7 @@ import express from 'express';
 import logger from '../utils/logger.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { createInteraction } from '../controllers/interactionController.js';
+import { updateStatus } from '../controllers/staffController.js';
 import upload from '../middleware/upload.js';
 
 const router = express.Router();
@@ -27,5 +28,8 @@ const requireStaff = (req, res, next) => {
 
 // Create new interaction (staff only)
 router.post('/interactions', requireStaff, upload.array('images', 10), createInteraction);
+
+// Update staff status
+router.post('/status', requireStaff, updateStatus);
 
 export default router;

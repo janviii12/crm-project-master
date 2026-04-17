@@ -30,6 +30,15 @@ const QuotationSchema = new mongoose.Schema({
       changes: Object,
     },
   ],
+  // Uploaded file fields
+  uploadedFile: {
+    fileName: String,
+    filePath: String,
+    fileType: String,
+    fileSize: Number,
+    uploadedAt: { type: Date, default: Date.now },
+    uploadedBy: String,
+  },
 });
 
 const Quotation = mongoose.model("Quotation", QuotationSchema);

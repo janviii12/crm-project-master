@@ -1,25 +1,24 @@
 import User from "../models/User.js";
 import UserActivity from "../models/UserActivity.js";
+import logger from '../utils/logger.js';
 import bcrypt from 'bcryptjs';
 import jwt from "jsonwebtoken";
 
 export const loginUser = async (req, res) => {
-   console.log('Login request body:', req.body);
+  console.log('Login request body:', req.body);
   try {
     const { email, password } = req.body;
-console.log("login user req " ,req.body);
-
+    console.log("login user req ", req.body);
 
     // find user
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: "User not found" });
-console.log("login user --- " ,user);
+    console.log("login user --- ", user);
 
     // check password
     const isMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!isMatch)
-      return res.status(401).json({ message: "Invalid credentials" });
-console.log("passowrd is match ", password);
+    if (!isMatch) return res.status(401).json({ message: "Invalid credentials" });
+    console.log("password is match ", password);
 
     // create access token (short-lived)
     const accessToken = jwt.sign(
@@ -46,17 +45,23 @@ console.log("passowrd is match ", password);
     });
     await user.save();
 
-    // log login activity
-    await UserActivity.create({
+// log login activity WITH metadata (for logout pairing)
+    const loginActivity = await UserActivity.create({
       userId: user._id,
       activityType: 'login',
       description: `User ${user.email} logged in`,
       ipAddress: req.ip || req.connection.remoteAddress,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get('User-Agent'),
+      metadata: {
+        startTime: new Date().toISOString(),
+        sessionStart: new Date().toISOString()
+      }
     });
+    console.log('✅ LOGIN CREATED w/ metadata:', loginActivity._id);
 
     // Emit real-time activity update
-    const { io } = await import('../server.js');
+    const ioMod = await import('../server.js');
+    const io = ioMod.io;
     if (io) {
       io.to('activity_admin').emit('new-activity', {
         activity: {
@@ -91,20 +96,20 @@ console.log("passowrd is match ", password);
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
-    console.log("Login user:", user); // 👈 yeh line add karo
+    console.log("Login user:", user);
 
-res.json({
-  accessToken,
-  user: {
-    id: user._id.toString(),
-    email: user.email,
-    name: user.name,
-    roles: user.roles,
-    avatar: user.avatar
-  }
-});
+    res.json({
+      accessToken,
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        name: user.name,
+        roles: user.roles,
+        avatar: user.avatar
+      }
+    });
 
-} catch (err) {
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
@@ -119,7 +124,6 @@ export const refreshToken = async (req, res) => {
     await new Promise(resolve => setTimeout(resolve, 2000));
     console.log("🪵 Refresh token delay added — backend is waiting 2 seconds");
 
-   
     const { refreshToken } = req.cookies;
     if (!refreshToken) {
       console.log('❌ Backend: No refresh token in cookies');
@@ -207,60 +211,123 @@ export const logoutUser = async (req, res) => {
   try {
     const { refreshToken } = req.cookies;
     if (refreshToken) {
-      // remove refresh token from DB
       await User.updateOne(
         { 'refreshTokens.token': refreshToken },
         { $pull: { refreshTokens: { token: refreshToken } } }
       );
     }
 
-    // clear refresh token cookie
+    // 🚀 AUTO-END OPEN ACTIVITIES BEFORE LOGOUT
+    let openActivities = [];
+    let loginActivity = null;
+    let logoutActivityId = null;
+    
+    if (req.user) {
+      const now = new Date();
+      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      
+      const openActivityTypes = ['lunch_start', 'meeting_start', 'outside_work_start', 'login'];
+      openActivities = await UserActivity.find({
+        userId: req.user.id,
+        activityType: { $in: openActivityTypes },
+        $or: [
+          { 'metadata.endTime': null },
+          { 'metadata.endTime': { $exists: false } }
+        ]
+      }).sort({ timestamp: -1 });
+      
+      console.log('🔍 Logout open activities found:', openActivities.length, 'User:', req.user.email);
+
+      // Auto-end open activities
+      let autoEndedCount = 0;
+      for (const openActivity of openActivities) {
+        openActivity.metadata = openActivity.metadata || {};
+        openActivity.metadata.endTime = now;
+        const startTime = new Date(openActivity.metadata.startTime || openActivity.timestamp);
+        openActivity.metadata.endTime = now; // ✅ CRITICAL: Set endTime
+        openActivity.metadata.duration = Math.floor((now - startTime) / (1000 * 60));
+        await openActivity.save();
+        console.log(`🚀 AUTO-ENDED ${openActivity.activityType} duration: ${openActivity.metadata.duration}m`);
+        autoEndedCount++; 
+        
+        // Emit update
+        const ioMod = await import('../server.js');
+        const io = ioMod.io;
+        if (io) {
+          io.to(`activity_${req.user.id}`).emit('activity-updated', openActivity.toObject());
+          io.to('activity_admin').emit('activity-updated', openActivity.toObject());
+          io.to('activity_manager').emit('activity-updated', openActivity.toObject());
+        }
+      }
+
+      // Pair login with logout
+      // 🔍 DEBUG: Find open login activity
+      console.log('🔍 LOGOUT DEBUG - finding open login for user:', req.user.id);
+      loginActivity = await UserActivity.findOne({
+        userId: req.user.id,
+        activityType: 'login',
+        $or: [
+          { 'metadata.endTime': { $eq: null } },
+          { 'metadata.endTime': { $exists: false } }
+        ]
+      }).sort({ timestamp: -1 }).limit(1);
+      
+      console.log('🔍 Found loginActivity:', loginActivity ? loginActivity._id : 'NONE', loginActivity?.timestamp);
+      
+        if (loginActivity) {
+          loginActivity.metadata = loginActivity.metadata || {};
+          loginActivity.metadata.endTime = now.toISOString();
+          loginActivity.metadata.sessionEndTime = now.toISOString();
+          loginActivity.metadata.sessionDurationMinutes = Math.floor((now - new Date(loginActivity.timestamp)) / (1000 * 60));
+          loginActivity.metadata.duration = loginActivity.metadata.sessionDurationMinutes;
+          loginActivity.description = `Session ended at logout (${loginActivity.metadata.sessionDurationMinutes}m)`;
+          loginActivity.markModified('metadata');
+          const saved = await loginActivity.save();
+          console.log('✅ LOGIN PAIRED END SAVED:', {
+            id: loginActivity._id,
+            duration: loginActivity.metadata.sessionDurationMinutes + 'm',
+            endTime: loginActivity.metadata.endTime,
+            saved: !!saved
+          });
+          
+// ✅ FIXED: NO SEPARATE LOGOUT ROW - only update LOGIN row
+          // Emit ONLY updated LOGIN row
+          const ioMod = await import('../server.js');
+          const io = ioMod.io;
+          if (io) {
+            const updatedLoginData = loginActivity.toObject();
+            io.to(`activity_${req.user.id}`).emit('activity-updated', updatedLoginData);
+            io.to('activity_admin').emit('activity-updated', updatedLoginData);
+            io.to('activity_manager').emit('activity-updated', updatedLoginData);
+            console.log('📡 EMITTED: login row updated only (no logout row)');
+          }
+      }
+    }
+
     res.clearCookie('refreshToken', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict'
     });
 
-    // log logout activity (assuming user is authenticated via middleware)
-    if (req.user) {
-      await UserActivity.create({
-        userId: req.user.id,
-        activityType: 'logout',
-        description: `User ${req.user.email} logged out`,
-        ipAddress: req.ip || req.connection.remoteAddress,
-        userAgent: req.get('User-Agent')
-      });
+    const updatedActivities = [
+      ...(loginActivity ? [loginActivity._id] : []),
+      ...openActivities.map(activity => activity._id)
+    ];
 
-      // Emit real-time activity update for logout
-      const { io } = await import('../server.js');
-      if (io) {
-        io.to('activity_admin').emit('new-activity', {
-          activity: {
-            _id: Date.now().toString(),
-            activityType: 'logout',
-            description: `User ${req.user.email} logged out`,
-            userName: req.user.name || req.user.email,
-            userRole: req.user.roles?.[0] || 'User',
-            timestamp: new Date()
-          },
-          timestamp: new Date()
-        });
-        io.to('activity_manager').emit('new-activity', {
-          activity: {
-            _id: Date.now().toString(),
-            activityType: 'logout',
-            description: `User ${req.user.email} logged out`,
-            userName: req.user.name || req.user.email,
-            userRole: req.user.roles?.[0] || 'User',
-            timestamp: new Date()
-          },
-          timestamp: new Date()
-        });
+    res.json({ 
+      success: true, 
+      message: "Logged out successfully", 
+      logoutConfirmation: {
+        logoutActivityId: logoutActivityId,
+        updatedActivities,
+        openActivitiesClosed: openActivities.length,
+        finalizedAt: new Date().toISOString()
       }
-    }
+    });
 
-    res.json({ message: "Logged out successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
