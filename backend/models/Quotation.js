@@ -10,6 +10,7 @@ const QuotationSchema = new mongoose.Schema({
   baseAmount: Number,
   gstPercent: { type: Number, default: 18 },
   totalAmount: Number,
+  notes: { type: String, default: "" },
   clientName: String,
   societyName: String,
   executiveName: String,

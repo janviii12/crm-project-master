@@ -4,6 +4,56 @@ import logger from '../utils/logger.js';
 import upload from '../middleware/upload.js';
 import XLSX from 'xlsx';
 
+export const getConversationStats = async (req, res) => {
+  try {
+    const { startDate, endDate, clientStatus } = req.query;
+
+    let filter = {};
+
+    if (clientStatus && clientStatus !== 'all') {
+      filter.clientStatus = clientStatus;
+    }
+
+    if (startDate && endDate) {
+      filter.lastInteractionDate = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+
+    const existing = await Conversation.countDocuments({
+      ...filter,
+      clientStatus: 'existing'
+    });
+
+    const potential = await Conversation.countDocuments({
+      ...filter,
+      clientStatus: 'potential'
+    });
+
+    const thisMonth = await Conversation.countDocuments({
+      ...filter,
+      lastInteractionDate: {
+        $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        existing,
+        potential,
+        thisMonth
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
 // Get all interactions (admin only)
 export const getInteractions = async (req, res) => {
   try {
@@ -89,7 +139,7 @@ export const getInteractions = async (req, res) => {
 // Create new interaction (staff only)
 export const createInteraction = async (req, res) => {
   try {
-    const { clientName, contactNumber, clientStatus, interactionType, notes, date, clientMessage, replyMessage } = req.body;
+    const { clientName, contactNumber, clientStatus, interactionType, notes, date, clientMessage, replyMessage,  referenceSource } = req.body;
 
     // Validate required fields - only interactionType is required
     if (!interactionType) {
@@ -135,6 +185,7 @@ export const createInteraction = async (req, res) => {
       clientMessage: clientMessage || '',
       replyMessage: replyMessage || '',
       handledBy: req.user.id,
+      referenceSource: req.body.referenceSource,
       date: date ? new Date(date) : new Date(),
       images
     });
@@ -334,6 +385,7 @@ export const getConversations = async (req, res) => {
               notes: '$notes',
               clientMessage: '$clientMessage',
               replyMessage: '$replyMessage',
+              referenceSource: '$referenceSource',
               images: '$images',
               handledBy: {
                 _id: '$handledBy._id',
@@ -360,17 +412,69 @@ export const getConversations = async (req, res) => {
     });
 
     // Get total count for pagination
-    const totalConversations = await ClientInteraction.aggregate([
-      { $match: matchQuery },
-      {
-        $group: {
-          _id: '$contactNumber'
+   // ✅ 1. Total conversations (pagination ke liye)
+const totalConversations = await ClientInteraction.aggregate([
+  { $match: matchQuery },
+  {
+    $group: {
+      _id: '$contactNumber'
+    }
+  },
+  { $count: 'total' }
+]);
+
+const total = totalConversations.length > 0 ? totalConversations[0].total : 0;
+
+
+// ✅ 2. STATS (alag query)
+const statsData = await ClientInteraction.aggregate([
+  { $match: matchQuery },
+ { $sort: { date: -1 } },
+  // STEP 1: GROUP BY CONTACT (MAKE CONVERSATIONS)
+  {
+    $group: {
+      _id: "$contactNumber",
+      clientStatus: { $last: "$clientStatus" },
+      lastInteractionDate: { $max: "$date" }
+    }
+  },
+
+  // STEP 2: NOW CALCULATE STATS
+  {
+    $group: {
+      _id: null,
+
+      totalConversations: { $sum: 1 },
+
+      existingClients: {
+        $sum: {
+          $cond: [{ $eq: ["$clientStatus", "existing"] }, 1, 0]
         }
       },
-      { $count: 'total' }
-    ]);
 
-    const total = totalConversations.length > 0 ? totalConversations[0].total : 0;
+      potentialClients: {
+        $sum: {
+          $cond: [{ $eq: ["$clientStatus", "potential"] }, 1, 0]
+        }
+      },
+
+      thisMonth: {
+        $sum: {
+          $cond: [
+            {
+              $and: [
+                { $eq: [{ $month: "$lastInteractionDate" }, new Date().getMonth() + 1] },
+                { $eq: [{ $year: "$lastInteractionDate" }, new Date().getFullYear()] }
+              ]
+            },
+            1,
+            0
+          ]
+        }
+      }
+    }
+  }
+]);
 
     // Log activity
     await UserActivity.create({
@@ -382,16 +486,24 @@ export const getConversations = async (req, res) => {
       metadata: { matchQuery, page, limit, total }
     });
 
-    res.json({
-      success: true,
-      data: conversations,
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(total / parseInt(limit)),
-        totalItems: total,
-        itemsPerPage: parseInt(limit)
-      }
-    });
+   res.json({
+  success: true,
+  data: conversations,
+  pagination: {
+    currentPage: parseInt(page),
+    totalPages: Math.ceil(total / parseInt(limit)),
+    totalItems: total,
+    itemsPerPage: parseInt(limit)
+  },
+
+  // ✅ ADD THIS
+  stats: statsData[0] || {
+    totalConversations: 0,
+    existingClients: 0,
+    potentialClients: 0,
+    thisMonth: 0
+  }
+});
   } catch (error) {
     logger.error('Error fetching conversations:', error);
     res.status(500).json({
@@ -400,6 +512,7 @@ export const getConversations = async (req, res) => {
     });
   }
 };
+
 
 // Upload images to interaction (admin, manager, executive)
 export const uploadImages = async (req, res) => {
@@ -599,6 +712,8 @@ export const updateConversation = async (req, res) => {
 
 // Export conversations to Excel (admin, manager, executive)
 export const exportConversationsToExcel = async (req, res) => {
+
+// Get client counts for dashboard (admin, manager, executive) - NEW ENDPOINT FOR COUNTS
   try {
     const {
       search = '',
@@ -661,7 +776,7 @@ export const exportConversationsToExcel = async (req, res) => {
           _id: '$contactNumber',
           clientName: { $first: '$clientName' },
           contactNumber: { $first: '$contactNumber' },
-          clientStatus: { $first: '$clientStatus' },
+          clientStatus: { $last: '$clientStatus' },
           lastInteractionDate: { $max: '$date' },
           totalInteractions: { $sum: 1 },
           interactions: {

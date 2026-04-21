@@ -59,6 +59,7 @@ export const createQuotation = async (req, res) => {
       baseAmount,
       gstPercent,
       totalAmount,
+      notes,
       clientName,
       societyName,
       executiveName,
@@ -244,15 +245,15 @@ export const generatePDF = async (req, res) => {
     doc.text("Notes", 420, tableTop, { width: 150 });
 
     // Table rows
+    const notes = quotation?.notes || "";
     let yPosition = tableTop + 20;
     doc.text(quotation.title, 50, yPosition, { width: 200 });
     doc.text(`Rs. ${quotation.baseAmount}`, 300, yPosition, { width: 100 });
-    doc.text("Base service charge", 420, yPosition, { width: 150 });
+   doc.text(notes, 420, yPosition, { width: 150 });
 
     yPosition += 20;
     doc.text(`GST (${quotation.gstPercent}%)`, 50, yPosition, { width: 200 });
     doc.text(`Rs. ${(quotation.baseAmount * quotation.gstPercent / 100).toFixed(2)}`, 300, yPosition, { width: 100 });
-    doc.text("Applicable GST", 420, yPosition, { width: 150 });
 
     yPosition += 20;
     doc.fontSize(12).text("Total Amount", 50, yPosition, { width: 200, bold: true });

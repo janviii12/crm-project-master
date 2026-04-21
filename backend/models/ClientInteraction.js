@@ -18,6 +18,7 @@ const clientInteractionSchema = new mongoose.Schema({
   notes: { type: String, default: '' },
   clientMessage: { type: String, default: '' }, // What the client said
   replyMessage: { type: String, default: '' }, // The response given to the client
+  referenceSource: { type: String, default: '' },
   images: [{ type: String }] // Array of image file paths
 }, { timestamps: true });
 

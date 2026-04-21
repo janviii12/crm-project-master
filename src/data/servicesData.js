@@ -156,7 +156,7 @@ export const servicesData = {
   },
 
   society_registration: {
-    title: "Society Registration",
+    title: "Society Reg6stration",
     documents: {
       membersDetails: [
         "Aadhar card",
@@ -206,4 +206,31 @@ export const servicesData = {
     ],
     time: "Annual compliance cycle",
   },
-};
+
+  LC_cooperative_society: {
+     title: "L&C Cooperative Society",
+       documents: [],
+  steps: [],
+  time: ""
+  },
+
+  Agriculture_cooperative_society: {
+    title: "Haryana Agriculture Cooperative Society",
+      documents: [],
+  steps: [],
+  time: ""
+  },
+
+  Multipurpose_cooperative_society:{
+   title:"Multipurpose Cooperative Society",
+     documents: [],
+  steps: [],
+  time: ""
+  },
+
+  CM_Packs:{
+     title:"Chief Minister Primary Agriculture Cooperative Society",
+       documents: [],
+  steps: [],
+  time: ""
+}}

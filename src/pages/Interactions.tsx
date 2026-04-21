@@ -23,12 +23,13 @@ interface Interaction {
   interactionType: 'Call' | 'WhatsApp' | 'Email' | 'Meeting';
   handledBy: {
     _id: string;
-    name: string;
+    name: string; 
     email: string;
   };
   notes: string;
   clientMessage?: string;
   replyMessage?: string;
+  referenceSource?: string;
   images?: string[];
   createdAt: string;
 }
@@ -69,54 +70,79 @@ const Interactions = () => {
     contactNumber: '',
     clientStatus: 'potential'
   });
+      const [pagination, setPagination] = useState({
+  currentPage: 1,
+  totalPages: 1,
+  totalItems: 0,
+  itemsPerPage: 10
+  });
+  const [stats, setStats] = useState({
+  totalConversations: 0,
+  existingClients: 0,
+  potentialClients: 0,
+  thisMonth: 0
+});
+
   const [updatingConversation, setUpdatingConversation] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = user?.roles?.includes('admin');
   const isStaff = user?.roles?.some(role => ['admin', 'manager' , 'executive'].includes(role));
 
-  const fetchConversations = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '10',
-        search: searchTerm,
-        ...(startDate && { startDate }),
-        ...(endDate && { endDate }),
-        ...(clientName && { clientName }),
-        ...(contactNumber && { contactNumber }),
-        ...(clientStatus && clientStatus !== 'all' && { clientStatus })
-      });
+const fetchConversations = async () => { 
+  try {
+    setLoading(true);
 
-      const response = await fetch(`${API_BASE_URL}/api/admin/conversations?${params}`, {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: '10',
+      search: searchTerm,
+      ...(startDate && { startDate }),
+      ...(endDate && { endDate }),
+      ...(clientName && { clientName }),
+      ...(contactNumber && { contactNumber }),
+      ...(clientStatus && clientStatus !== 'all' && { clientStatus })
+    });
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/conversations?${params}`,
+      {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${localStorage.getItem('token')}`
         }
-      });
-
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        setConversations(result.data);
-        setTotalPages(result.pagination.totalPages);
-      } else {
-        toast({
-          title: 'Error',
-          description: result.message || 'Failed to fetch conversations',
-          variant: 'destructive'
-        });
       }
-    } catch (error) {
+    );
+
+    const result = await response.json();
+
+    if (response.ok && result.success) {
+      setConversations(result.data);
+
+      // ✅ THIS is your missing "total conversation code"
+      setPagination({
+        currentPage: result.pagination.currentPage,
+        totalPages: result.pagination.totalPages,
+        totalItems: result.pagination.totalItems,
+        itemsPerPage: result.pagination.itemsPerPage
+      });
+      setStats(result.stats);
+    } else {
       toast({
         title: 'Error',
-        description: 'Failed to fetch conversations',
+        description: result.message || 'Failed to fetch conversations',
         variant: 'destructive'
       });
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    toast({
+      title: 'Error',
+      description: 'Failed to fetch conversations',
+      variant: 'destructive'
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this interaction?')) return;
@@ -449,7 +475,7 @@ const Interactions = () => {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Conversations</p>
-                  <p className="text-2xl font-bold text-gray-900">{conversations.length}</p>
+                  <p className="text-2xl font-bold text-gray-900">{pagination.totalItems}</p>
                 </div>
               </div>
             </CardContent>
@@ -463,12 +489,12 @@ const Interactions = () => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Existing Clients</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {conversations.filter(c => c.clientStatus === 'existing').length}
+                    {stats?.existingClients || 0}
                   </p>
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card> 
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
@@ -478,8 +504,7 @@ const Interactions = () => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Potential Clients</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {conversations.filter(c => c.clientStatus === 'potential').length}
-                  </p>
+{stats?.potentialClients || 0}                  </p>
                 </div>
               </div>
             </CardContent>
@@ -493,11 +518,7 @@ const Interactions = () => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">This Month</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {conversations.filter(c => {
-                      const date = new Date(c.lastInteractionDate);
-                      const now = new Date();
-                      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-                    }).length}
+                    {stats?.thisMonth || 0}
                   </p>
                 </div>
               </div>
@@ -744,6 +765,16 @@ const Interactions = () => {
                       </div>
                     </div>
                   </div>
+                  <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Reference Source
+  </label>
+  <div className="p-3 bg-gray-50 rounded-lg">
+    <p className="font-medium">
+              {viewingConversation.interactions?.[0]?.referenceSource || 'Not Available'}
+    </p>
+  </div>
+</div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Interaction History</label>
@@ -944,7 +975,7 @@ const Interactions = () => {
         </Dialog>
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {pagination.totalPages > 1 && (
           <Card className="mt-6">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -963,13 +994,13 @@ const Interactions = () => {
                     <span className="text-sm text-gray-600">Page</span>
                     <span className="font-medium text-gray-900">{page}</span>
                     <span className="text-sm text-gray-600">of</span>
-                    <span className="font-medium text-gray-900">{totalPages}</span>
+                    <span className="font-medium text-gray-900">{pagination.totalPages}</span>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setPage(page + 1)}
-                    disabled={page === totalPages}
+                    disabled={page === pagination.totalPages}
                     className="flex items-center gap-2"
                   >
                     Next

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -69,6 +69,26 @@ const QuotationForm = ({ quotation, onSubmit, onCancel }: QuotationFormProps) =>
     memberLimit: 7,
   });
 
+const [search, setSearch] = useState("");
+const [showDropdown, setShowDropdown] = useState(false);
+const wrapperRef = useRef<HTMLDivElement>(null);
+
+useEffect(() => {
+  function handleClickOutside(event: MouseEvent) {
+    if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+      setShowDropdown(false);
+    }
+  }
+
+  document.addEventListener("mousedown", handleClickOutside);
+  return () => document.removeEventListener("mousedown", handleClickOutside);
+}, []);
+
+const filteredServices = Object.entries(servicesData).filter(
+  ([key, service]: any) =>
+    service.title.toLowerCase().includes(search.toLowerCase())
+);
+
   const [selectedService, setSelectedService] = useState<any>(null);
 
   useEffect(() => {
@@ -118,30 +138,35 @@ const QuotationForm = ({ quotation, onSubmit, onCancel }: QuotationFormProps) =>
     }
   }, [quotation]);
 
-  const handleServiceChange = (serviceKey: string) => {
-    const service = servicesData[serviceKey];
-    if (service) {
-      setFormData({
-        ...formData,
-        serviceKey,
-        title: service.title,
-        documents: service.documents,
-        steps: service.steps,
-        time: service.time,
-      });
-      setSelectedService(service);
-    }
+const handleServiceChange = (serviceKey: string) => {
+  const service = servicesData[serviceKey];
+
+  if (service) {
+    setFormData((prev) => ({
+      ...prev,
+      serviceKey,
+      title: service.title,
+      documents: service.documents,
+      steps: service.steps,
+      time: service.time,
+    }));
+
+    setSelectedService(service);
+  }
+};
+
+const handleSubmit = (e: React.FormEvent) => {
+  e.preventDefault();
+
+  const submitData = {
+    ...formData,
+    baseAmount: parseFloat(formData.baseAmount),
+    gstPercent: parseFloat(formData.gstPercent.toString()),
+    notes: formData.notes || "",   // ✅ ADD THIS LINE
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const submitData = {
-      ...formData,
-      baseAmount: parseFloat(formData.baseAmount),
-      gstPercent: parseFloat(formData.gstPercent.toString()),
-    };
-    onSubmit(submitData);
-  };
+  onSubmit(submitData);
+};
 
   const addDocument = () => {
     if (Array.isArray(formData.documents)) {
@@ -237,21 +262,41 @@ const QuotationForm = ({ quotation, onSubmit, onCancel }: QuotationFormProps) =>
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Service Selection */}
-        <div className="space-y-2">
-          <Label htmlFor="serviceKey">Service *</Label>
-          <Select value={formData.serviceKey} onValueChange={handleServiceChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a service" />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(servicesData).map(([key, service]: [string, any]) => (
-                <SelectItem key={key} value={key}>
-                  {service.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+<div className="space-y-2 relative" ref={wrapperRef}>
+  <Label>Service *</Label>
+
+  <Input
+    placeholder="Select a service"
+    value={search}
+    onClick={() => setShowDropdown(true)}
+    onChange={(e) => {
+      setSearch(e.target.value);
+      setShowDropdown(true);
+    }}
+  />
+
+  {showDropdown && (
+    <div className="absolute z-50 w-full bg-white border rounded-md max-h-60 overflow-y-auto shadow mt-1">
+      {filteredServices.length > 0 ? (
+        filteredServices.map(([key, service]: any) => (
+          <div
+            key={key}
+            className="p-2 hover:bg-gray-100 cursor-pointer"
+            onClick={() => {
+              handleServiceChange(key);
+              setSearch(service.title);
+              setShowDropdown(false); // ✅ close on select
+            }}
+          >
+            {service.title}
+          </div>
+        ))
+      ) : (
+        <div className="p-2 text-gray-500">No results found</div>
+      )}
+    </div>
+  )}
+</div>
 
         {/* Title */}
         <div className="space-y-2">

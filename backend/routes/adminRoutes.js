@@ -7,6 +7,8 @@ import mongoose from 'mongoose';
 import logger from '../utils/logger.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { getInteractions, getConversations, updateInteraction, updateConversation, deleteInteraction, uploadImages, exportConversationsToExcel } from '../controllers/interactionController.js';
+// import Conversation from '../models/Conversation.js';
+import { getConversationStats } from '../controllers/interactionController.js';
 import { getLogs } from '../controllers/logController.js';
 import upload from '../middleware/upload.js';
 
@@ -33,6 +35,11 @@ const requireAdminOrDeveloper = (req, res, next) => {
   next();
 };
 
+router.get(
+  '/conversations/stats',
+  requireAdminOrDeveloper,
+  getConversationStats
+);
 // Get all client interactions (admin, manager, executive)
 router.get('/interactions', requireAdminOrDeveloper, getInteractions);
 

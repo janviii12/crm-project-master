@@ -32,6 +32,8 @@ const InteractionForm = ({ onSuccess, onCancel, editData, quickAdd }: Interactio
   const [loading, setLoading] = useState(false);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [referenceType, setReferenceType] = useState('');
+  const [otherReference, setOtherReference] = useState('');
   const [formData, setFormData] = useState({
     clientName: editData?.clientName || '',
     contactNumber: editData?.contactNumber || '',
@@ -136,13 +138,13 @@ const InteractionForm = ({ onSuccess, onCancel, editData, quickAdd }: Interactio
       } else {
         // For new interactions, use FormData to handle images
         const formDataToSend = new FormData();
-        
+
         // Get values from hidden fields if present
         const clientNameEl = document.querySelector('input[name="clientName"]') as HTMLInputElement;
         const contactNumberEl = document.querySelector('input[name="contactNumber"]') as HTMLInputElement;
         const clientStatusEl = document.querySelector('input[name="clientStatus"]') as HTMLInputElement;
         const notesEl = document.querySelector('input[name="notes"]') as HTMLInputElement;
-        
+
         // Use hidden field values if formData values are empty
         formDataToSend.append('clientName', clientNameEl?.value || formData.clientName || 'Unknown');
         formDataToSend.append('contactNumber', contactNumberEl?.value || formData.contactNumber || 'Unknown');
@@ -152,6 +154,10 @@ const InteractionForm = ({ onSuccess, onCancel, editData, quickAdd }: Interactio
         formDataToSend.append('clientMessage', formData.clientMessage || '');
         formDataToSend.append('replyMessage', formData.replyMessage || '');
         formDataToSend.append('date', dateTime);
+        const finalReference =
+          referenceType === 'other' ? otherReference : referenceType;
+
+        formDataToSend.append('referenceSource', finalReference);
 
         // Add images
         selectedImages.forEach((image) => {
@@ -253,7 +259,7 @@ const InteractionForm = ({ onSuccess, onCancel, editData, quickAdd }: Interactio
   const isNewInteraction = !quickAdd && !editData?._id;
   const isQuickAdd = quickAdd;
   const isEditing = editData && editData._id;
-  
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Hidden fields for backend required data */}
@@ -261,7 +267,7 @@ const InteractionForm = ({ onSuccess, onCancel, editData, quickAdd }: Interactio
       <input type="hidden" name="contactNumber" value={formData.contactNumber} />
       <input type="hidden" name="clientStatus" value={formData.clientStatus} />
       <input type="hidden" name="notes" value={formData.notes} />
-      
+
       {/* Full form fields - shown when creating a NEW interaction (not quickAdd, not editing) */}
       {isNewInteraction && (
         <>
@@ -346,6 +352,35 @@ const InteractionForm = ({ onSuccess, onCancel, editData, quickAdd }: Interactio
               />
             </div>
           </div>
+
+          {/* Reference */}
+          <div>
+            <Label>Reference Source</Label>
+            <Select value={referenceType} onValueChange={setReferenceType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select reference source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="youtube">YouTube</SelectItem>
+                <SelectItem value="instagram">Instagram</SelectItem>
+                <SelectItem value="facebook">Facebook</SelectItem>
+                <SelectItem value="known">Known</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* ✅ CONDITIONAL INPUT (ONLY FOR OTHER) */}
+          {referenceType === 'other' && (
+            <div className="mt-3">
+              <Label>Specify Other Source</Label>
+              <Input
+                value={otherReference}
+                onChange={(e) => setOtherReference(e.target.value)}
+                placeholder="Enter source name"
+              />
+            </div>
+          )}
 
           {/* Notes field */}
           <div>

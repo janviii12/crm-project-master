@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
-
+import path from "path";
 import express from "express";
 import aadhaarRoutes from "./models/aadhaar-ocr/aadhaar.routes.js"; // Aadhaar OCR routes
 import cors from "cors";
@@ -100,7 +100,10 @@ app.use('/api/leads', leadsRoutes);
 
 // Redirects LAST\nimport redirectRoutes from './routes/redirectRoutes.js';\napp.use(redirectRoutes);
 // Serve static files from uploads directory
-app.use('/api/uploads', express.static('uploads'));
+app.use(
+  "/api/uploads",
+  express.static(path.join(process.cwd(), "uploads"))
+);
 
 
 // Socket.IO connection handling
