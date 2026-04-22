@@ -33,6 +33,19 @@ import pettyCashRoutes from "./routes/pettyCashRoutes.js"; // Petty cash routes
 import taskRoutes from "./routes/taskRoutes.js";
 import leadsRoutes from "./routes/leadsRoutes.js";
 import { checkReminders } from "./controllers/followUpController.js";
+import fs from "fs";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 👇 uploads folder ensure
+const uploadPath = path.join(__dirname, "uploads");
+
+if (!fs.existsSync(uploadPath)) {
+  fs.mkdirSync(uploadPath, { recursive: true });
+}
+
 connectDB();
 const app = express();
 const server = createServer(app);
@@ -68,6 +81,8 @@ app.use(cors({
 }));
 app.use(cookieParser());
 app.use(express.json());
+
+app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
 /**
  * 📌 NOTE:
  * Currently, we only have "Users" for login & authentication (via authRoutes).
@@ -100,10 +115,7 @@ app.use('/api/leads', leadsRoutes);
 
 // Redirects LAST\nimport redirectRoutes from './routes/redirectRoutes.js';\napp.use(redirectRoutes);
 // Serve static files from uploads directory
-app.use(
-  "/api/uploads",
-  express.static(path.join(process.cwd(), "uploads"))
-);
+
 
 
 // Socket.IO connection handling

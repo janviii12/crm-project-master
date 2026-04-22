@@ -26,13 +26,17 @@ export const getStaffActivities = async (req, res) => {
     
     // Executive self-view: only if authenticated
     // Build activityType filter safely
+const excludedTypes = ['interaction', 'interaction_view', 'note_view', 'interaction_create', 'note_create', 'note_share'];
+
 if (req.query.activityType && req.query.activityType !== 'all') {
   filter.activityType = {
     $eq: req.query.activityType,
-    $ne: 'interaction_view'
+    $nin: excludedTypes
   };
 } else {
-  filter.activityType = { $ne: 'interaction_view' };
+  filter.activityType = {
+    $nin: excludedTypes
+  };
 }
     if (from_date) {
       filter.timestamp = filter.timestamp || {};
