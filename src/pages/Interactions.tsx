@@ -51,6 +51,7 @@ const Interactions = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -95,7 +96,7 @@ const fetchConversations = async () => {
 
     const params = new URLSearchParams({
       page: page.toString(),
-      limit: '10',
+      limit: pageSize.toString(),
       search: searchTerm,
       ...(startDate && { startDate }),
       ...(endDate && { endDate }),
@@ -362,7 +363,7 @@ const fetchConversations = async () => {
     if (isStaff) {
       fetchConversations();
     }
-  }, [page, isStaff]);
+  }, [page, pageSize, isStaff]);
 
   const getInteractionTypeColor = (type: string) => {
     switch (type) {
@@ -975,7 +976,7 @@ const fetchConversations = async () => {
         </Dialog>
 
         {/* Pagination */}
-        {pagination.totalPages > 1 && (
+        {pagination.totalItems > 0 && (
           <Card className="mt-6">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -1007,8 +1008,29 @@ const fetchConversations = async () => {
                     <span className="text-sm">→</span>
                   </Button>
                 </div>
-                <div className="text-sm text-gray-500">
-                  Showing {conversations.length} conversations
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Rows per page</span>
+                    <Select
+                      value={pageSize.toString()}
+                      onValueChange={(value) => {
+                        setPageSize(parseInt(value));
+                        setPage(1);
+                      }}
+                    >
+                      <SelectTrigger className="w-[80px] h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[10, 25, 50, 100].map((size) => (
+                          <SelectItem key={size} value={size.toString()}>{size}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    Showing {conversations.length} of {pagination.totalItems} conversations
+                  </div>
                 </div>
               </div>
             </CardContent>

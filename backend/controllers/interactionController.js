@@ -3,6 +3,27 @@ import UserActivity from '../models/UserActivity.js';
 import logger from '../utils/logger.js';
 import upload from '../middleware/upload.js';
 import XLSX from 'xlsx';
+import mongoose from 'mongoose';
+
+const isAdminUser = (user) => {
+  const roles = Array.isArray(user?.roles) ? user.roles : [user?.role];
+  return roles.includes('admin');
+};
+
+// Non-admins only see customers (contact numbers) whose most recent interaction
+// ("Last Handled By") was handled by them. Admins are unrestricted.
+// Mutates and returns the given query.
+const restrictToUserCustomers = async (query, user) => {
+  if (isAdminUser(user)) return query;
+  const latest = await ClientInteraction.aggregate([
+    { $sort: { date: -1 } },
+    { $group: { _id: '$contactNumber', lastHandledBy: { $first: '$handledBy' } } },
+    { $match: { lastHandledBy: new mongoose.Types.ObjectId(user.id) } }
+  ]);
+  const contactNumbers = latest.map(c => c._id);
+  query.$and = [...(query.$and || []), { contactNumber: { $in: contactNumbers } }];
+  return query;
+};
 
 export const getConversationStats = async (req, res) => {
   try {
@@ -96,6 +117,8 @@ export const getInteractions = async (req, res) => {
     if (clientStatus) {
       query.clientStatus = clientStatus;
     }
+
+    await restrictToUserCustomers(query, req.user);
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
@@ -344,6 +367,8 @@ export const getConversations = async (req, res) => {
     if (clientStatus) {
       matchQuery.clientStatus = clientStatus;
     }
+
+    await restrictToUserCustomers(matchQuery, req.user);
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
@@ -753,6 +778,8 @@ export const exportConversationsToExcel = async (req, res) => {
     if (clientStatus) {
       matchQuery.clientStatus = clientStatus;
     }
+
+    await restrictToUserCustomers(matchQuery, req.user);
 
     // Fetch all conversations without pagination limit
     const conversations = await ClientInteraction.aggregate([

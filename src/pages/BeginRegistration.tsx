@@ -13,6 +13,7 @@ import { Upload, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { servicesData } from '@/data/servicesData';
 import { API_BASE_URL } from '@/config';
+import axiosInstance from '../lib/axiosInstance';
 
 const registrationSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -134,21 +135,23 @@ const BeginRegistration = () => {
       formData.append('address', data.address);
       formData.append('serviceType', customerData?.serviceType || 'company_registration'); // Use customer's serviceType or default
       formData.append('file', selectedFile);
-      const response = await fetch(`${API_BASE_URL}/api/customers/create`, {
-        method: 'POST',
-        body: formData,
+      const response = await axiosInstance.post('/api/customers/create', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
 
-      const result = await response.json();
-
-      if (response.ok) {
+      //const result = await response.json();
+      if (response.data.success) {
+        console.log('Success data' + response.data);
         toast.success('Registration submitted successfully!');
         reset();
         setSelectedFile(null);
         // Redirect to application status page
         navigate('/application-status');
       } else {
-        toast.error(result.message || 'Failed to submit registration');
+        console.log('Success data' + response.data.message);
+        toast.error(response.data.message || 'Failed to submit registration');
       }
     } catch (error: any) {
       toast.error('Network error occurred');
