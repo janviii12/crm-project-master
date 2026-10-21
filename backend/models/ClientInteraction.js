@@ -9,6 +9,12 @@ const clientInteractionSchema = new mongoose.Schema({
     enum: ['existing', 'potential', 'closed-not-interested', 'closed-service-done'],
     default: 'potential'
   },
+  // Lead temperature, only meaningful while clientStatus is 'potential'
+  clientType: {
+    type: String,
+    enum: ['', 'Luke Warm', 'Warm', 'Hot'],
+    default: ''
+  },
   interactionType: {
     type: String,
     required: true,

@@ -25,6 +25,14 @@ const restrictToUserCustomers = async (query, user) => {
   return query;
 };
 
+const VALID_CLIENT_TYPES = ['Luke Warm', 'Warm', 'Hot'];
+
+// Client type only applies to 'potential' clients (default 'Luke Warm'); anything else stores ''.
+const resolveClientType = (clientStatus, clientType, fallback = '') => {
+  if (clientStatus !== 'potential') return '';
+  return VALID_CLIENT_TYPES.includes(clientType) ? clientType : (fallback || 'Luke Warm');
+};
+
 export const getConversationStats = async (req, res) => {
   try {
     const { startDate, endDate, clientStatus } = req.query;
@@ -162,7 +170,14 @@ export const getInteractions = async (req, res) => {
 // Create new interaction (staff only)
 export const createInteraction = async (req, res) => {
   try {
-    const { clientName, contactNumber, clientStatus, interactionType, notes, date, clientMessage, replyMessage,  referenceSource } = req.body;
+    const { clientName, contactNumber, clientStatus, clientType, interactionType, notes, date, clientMessage, replyMessage,  referenceSource } = req.body;
+
+    if (clientType && !VALID_CLIENT_TYPES.includes(clientType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid client type'
+      });
+    }
 
     // Validate required fields - only interactionType is required
     if (!interactionType) {
@@ -203,6 +218,7 @@ export const createInteraction = async (req, res) => {
       clientName: finalClientName,
       contactNumber: finalContactNumber,
       clientStatus: finalClientStatus,
+      clientType: resolveClientType(finalClientStatus, clientType),
       interactionType,
       notes: finalNotes,
       clientMessage: clientMessage || '',
@@ -245,7 +261,14 @@ export const createInteraction = async (req, res) => {
 export const updateInteraction = async (req, res) => {
   try {
     const { id } = req.params;
-    const { clientName, contactNumber, clientStatus, interactionType, notes, date, clientMessage, replyMessage } = req.body;
+    const { clientName, contactNumber, clientStatus, clientType, interactionType, notes, date, clientMessage, replyMessage } = req.body;
+
+    if (clientType && !VALID_CLIENT_TYPES.includes(clientType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid client type'
+      });
+    }
 
     // Validate required fields - only interactionType is required
     if (!interactionType) {
@@ -289,6 +312,7 @@ export const updateInteraction = async (req, res) => {
     interaction.clientName = clientName || interaction.clientName;
     interaction.contactNumber = contactNumber || interaction.contactNumber;
     interaction.clientStatus = clientStatus || interaction.clientStatus;
+    interaction.clientType = resolveClientType(interaction.clientStatus, clientType, interaction.clientType);
     interaction.interactionType = interactionType;
     interaction.notes = notes || interaction.notes || '';
     interaction.clientMessage = clientMessage !== undefined ? clientMessage : interaction.clientMessage;
@@ -407,6 +431,7 @@ export const getConversations = async (req, res) => {
               _id: '$_id',
               date: '$date',
               interactionType: '$interactionType',
+              clientType: '$clientType',
               notes: '$notes',
               clientMessage: '$clientMessage',
               replyMessage: '$replyMessage',
@@ -434,6 +459,8 @@ export const getConversations = async (req, res) => {
     // Sort interactions within each conversation by date (descending) in JavaScript
     conversations.forEach(conversation => {
       conversation.interactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+      // Conversation-level client type follows the most recent interaction
+      conversation.clientType = conversation.interactions[0]?.clientType || '';
     });
 
     // Get total count for pagination
@@ -631,7 +658,14 @@ export const updateConversation = async (req, res) => {
   try {
     // Decode the contact number from URL
     const contactNumber = decodeURIComponent(req.params.contactNumber);
-    const { clientName, newContactNumber, clientStatus, handledBy } = req.body;
+    const { clientName, newContactNumber, clientStatus, clientType, handledBy } = req.body;
+
+    if (clientType && !VALID_CLIENT_TYPES.includes(clientType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid client type'
+      });
+    }
 
     // Validate required fields
     if (!clientName || !newContactNumber || !clientStatus) {
@@ -699,6 +733,19 @@ export const updateConversation = async (req, res) => {
       { contactNumber },
       updateData
     );
+
+    // Client type: cleared everywhere unless 'potential'; for 'potential' it is set on the
+    // most recent interaction only, so earlier interactions keep their own history.
+    const finalContactNumber = newContactNumber;
+    if (clientStatus !== 'potential') {
+      await ClientInteraction.updateMany({ contactNumber: finalContactNumber }, { clientType: '' });
+    } else {
+      const latest = await ClientInteraction.findOne({ contactNumber: finalContactNumber }).sort({ date: -1 });
+      if (latest) {
+        latest.clientType = resolveClientType('potential', clientType);
+        await latest.save();
+      }
+    }
 
     // Log activity
     await UserActivity.create({
@@ -811,6 +858,7 @@ export const exportConversationsToExcel = async (req, res) => {
               _id: '$_id',
               date: '$date',
               interactionType: '$interactionType',
+              clientType: '$clientType',
               notes: '$notes',
               clientMessage: '$clientMessage',
               replyMessage: '$replyMessage',
@@ -841,6 +889,7 @@ export const exportConversationsToExcel = async (req, res) => {
       'Client Name',
       'Contact Number',
       'Client Status',
+      'Client Type',
       'Last Interaction Date',
       'Total Interactions',
       'Interaction Type',
@@ -861,6 +910,7 @@ export const exportConversationsToExcel = async (req, res) => {
           conversation.clientName || '',
           conversation.contactNumber || '',
           conversation.clientStatus === 'existing' ? 'Existing Client' : 'Yet to be Client',
+          '',
           lastDate,
           '0',
           '',
@@ -886,6 +936,8 @@ export const exportConversationsToExcel = async (req, res) => {
             index === 0 ? (conversation.clientName || '') : '', // Only show client name on first row
             index === 0 ? (conversation.contactNumber || '') : '',
             index === 0 ? (conversation.clientStatus === 'existing' ? 'Existing Client' : 'Yet to be Client') : '',
+            // Client type per interaction (only set for 'Yet to be Client' leads)
+            interaction.clientType || (conversation.clientStatus === 'potential' ? 'Luke Warm' : ''),
             index === 0 ? lastDate : '',
             index === 0 ? conversation.totalInteractions.toString() : '',
             interaction.interactionType || '',
@@ -908,6 +960,7 @@ export const exportConversationsToExcel = async (req, res) => {
       { wch: 20 }, // Client Name
       { wch: 15 }, // Contact Number
       { wch: 18 }, // Client Status
+      { wch: 14 }, // Client Type
       { wch: 15 }, // Last Interaction Date
       { wch: 18 }, // Total Interactions
       { wch: 15 }, // Interaction Type
