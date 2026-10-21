@@ -242,6 +242,11 @@ export const updateFollowUp = async (req, res) => {
       }
     });
 
+    // Rescheduling should send a fresh reminder
+    if (followUp.isModified('date') || followUp.isModified('time') || followUp.isModified('reminderBefore')) {
+      followUp.reminderSent = false;
+    }
+
     await followUp.save();
 
     // Populate the response
@@ -449,32 +454,49 @@ export const getAllReminderDates = async (req, res) => {
 export const checkReminders = async (io) => {
   try {
     const now = new Date();
+    const DAY = 24 * 60 * 60 * 1000;
 
-    // Find follow-ups that need reminders in the next 5 minutes
-    const reminderWindow = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes from now
+    // `date` is stored as midnight, so combine it with `time` to get the actual moment
+    const getFollowUpDateTime = (followUp) =>
+      new Date(`${followUp.date.toISOString().split('T')[0]}T${followUp.time}`);
 
+    // Candidates: pending follow-ups around today that haven't been reminded yet
     const upcomingFollowUps = await FollowUp.find({
       status: 'pending',
-      date: { $lte: reminderWindow }
+      reminderSent: { $ne: true },
+      date: { $gte: new Date(now.getTime() - DAY), $lte: new Date(now.getTime() + 2 * DAY) }
     }).populate('userId', 'name email').populate({
       path: 'clientId',
       select: 'name company'
     });
 
     for (const followUp of upcomingFollowUps) {
-      const followUpDateTime = new Date(`${followUp.date.toISOString().split('T')[0]}T${followUp.time}`);
-      const reminderTime = new Date(followUpDateTime.getTime() - followUp.reminderBefore * 60 * 1000);
+      try {
+        const followUpDateTime = getFollowUpDateTime(followUp);
+        const reminderTime = new Date(followUpDateTime.getTime() - (followUp.reminderBefore || 30) * 60 * 1000);
 
-      // Check if reminder should be triggered now
-      if (reminderTime <= now && reminderTime > new Date(now.getTime() - 60 * 1000)) { // Within last minute
-        // Send real-time notification
+        // Fire once, any time between the reminder time and the follow-up itself
+        if (now < reminderTime || now >= followUpDateTime || !followUp.userId) continue;
+
+        // Claim it first so overlapping cron runs don't send duplicates
+        const claimed = await FollowUp.updateOne(
+          { _id: followUp._id, reminderSent: { $ne: true } },
+          { $set: { reminderSent: true } }
+        );
+        if (claimed.modifiedCount === 0) continue;
+
+        const minutesUntil = Math.max(1, Math.round((followUpDateTime - now) / (1000 * 60)));
+        const withClient = followUp.clientId?.name ? ` with ${followUp.clientId.name}` : '';
+        const message = `You have a follow-up${withClient} at ${followUp.time} (in ${minutesUntil} min)`;
+
+        // Send real-time popup
         if (io) {
           io.to(`activity_${followUp.userId._id}`).emit('reminderAlert', {
             followUpId: followUp._id,
             title: followUp.title,
-            clientName: followUp.clientId.name,
+            clientName: followUp.clientId?.name || null,
             time: followUp.time,
-            minutesUntil: Math.floor((followUpDateTime - now) / (1000 * 60))
+            minutesUntil
           });
         }
 
@@ -483,31 +505,34 @@ export const checkReminders = async (io) => {
           followUp.userId._id,
           'warning',
           `Follow-up Reminder: ${followUp.title}`,
-          `You have a follow-up with ${followUp.clientId.name} at ${followUp.time}`,
-          `/followups/${followUp._id}`,
+          message,
+          '/calendar',
           io
         );
 
         // Send push notification
-        const { sendPushNotification } = await import('./pushController.js');
         await sendPushNotification(
           followUp.userId._id,
           'Follow-up Reminder',
-          `You have a follow-up with ${followUp.clientId.name} at ${followUp.time}`,
-          '/logo-grow.png',
-          '/logo-grow.png'
-        );
+          message
+        ).catch(err => console.error('checkReminders push error:', err));
+      } catch (err) {
+        console.error(`checkReminders error for follow-up ${followUp._id}:`, err);
       }
     }
 
-    // Mark missed follow-ups
-    const missedFollowUps = await FollowUp.find({
+    // Mark missed follow-ups (only once their actual date + time has passed)
+    const missedCandidates = await FollowUp.find({
       status: { $in: ['pending', 'in-progress'] },
-      date: { $lt: now }
-    });
+      date: { $lte: now }
+    }).select('date time');
 
-    for (const followUp of missedFollowUps) {
-      await FollowUp.findByIdAndUpdate(followUp._id, { status: 'missed' });
+    const missedIds = missedCandidates
+      .filter(followUp => getFollowUpDateTime(followUp) < now)
+      .map(followUp => followUp._id);
+
+    if (missedIds.length > 0) {
+      await FollowUp.updateMany({ _id: { $in: missedIds } }, { status: 'missed' });
     }
 
   } catch (error) {

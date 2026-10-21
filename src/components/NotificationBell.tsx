@@ -1,20 +1,33 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Check, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useNotifications } from '@/contexts/NotificationContext';
+import { useSocket } from '@/contexts/SocketContext';
 import { cn } from '@/lib/utils';
 
 interface NotificationBellProps {
   className?: string;
 }
 
+interface ReminderAlert {
+  followUpId: string;
+  title: string;
+  clientName: string | null;
+  time: string;
+  minutesUntil: number;
+}
+
 const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const { socket } = useSocket();
   const {
     notifications,
     unreadCount,
@@ -23,6 +36,30 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
     markAllAsRead,
     deleteNotification
   } = useNotifications();
+
+  // Pop up a reminder when a follow-up is about to start (sent by the backend cron ~15 min before)
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleReminderAlert = (data: ReminderAlert) => {
+      const withClient = data.clientName ? ` with ${data.clientName}` : '';
+      toast.warning(`Follow-up Reminder: ${data.title}`, {
+        id: `reminder-${data.followUpId}`,
+        description: `Starts at ${data.time}${withClient} (in ${data.minutesUntil} min)`,
+        duration: Infinity,
+        closeButton: true,
+        action: {
+          label: 'View',
+          onClick: () => navigate('/calendar')
+        }
+      });
+    };
+
+    socket.on('reminderAlert', handleReminderAlert);
+    return () => {
+      socket.off('reminderAlert', handleReminderAlert);
+    };
+  }, [socket, navigate]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

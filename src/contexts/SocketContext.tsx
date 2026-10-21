@@ -30,6 +30,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         console.log('Socket connected:', newSocket.id);
         setIsConnected(true);
 
+        // (Re)join the personal room on every connect, so reminders still arrive after a reconnect
+        newSocket.emit('join-activity-room', user.id);
+
         // Join role-based rooms for admin/manager users
         if (user.roles?.includes('admin')) {
           newSocket.emit('join-activity-room', 'admin');

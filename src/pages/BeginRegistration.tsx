@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 import { Upload, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { servicesData } from '@/data/servicesData';
-import { API_BASE_URL } from '@/config';
 import axiosInstance from '../lib/axiosInstance';
 
 const registrationSchema = z.object({
@@ -71,10 +70,11 @@ const BeginRegistration = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/customers/by-email/${encodeURIComponent(user.email)}`);
-      const result = await response.json();
+      // Authenticated request; resolve on any status so "not found" is handled below
+      const response = await axiosInstance.get(`/api/customers/by-email/${encodeURIComponent(user.email)}`, { validateStatus: () => true });
+      const result = response.data;
 
-      if (response.ok && result.success) {
+      if (response.status === 200 && result.success) {
         setCustomerData(result.data);
       } else {
         // Customer not found, that's okay - they might not have registered yet
