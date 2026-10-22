@@ -23,7 +23,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { API_BASE_URL } from '@/config';
+import axiosInstance from '@/lib/axiosInstance';
 
 const Sidebar = () => {
   const location = useLocation();
@@ -39,9 +39,10 @@ const Sidebar = () => {
       if (user?.email) {
         const checkApplicationStatus = async () => {
           try {
-            const response = await fetch(`${API_BASE_URL}/api/customers/by-email/${encodeURIComponent(user.email)}`);
-            const result = await response.json();
-            if (response.ok && result.success && result.data.submittedAt) {
+            // Authenticated request; resolve on any status so "not found" is handled below
+            const response = await axiosInstance.get(`/api/customers/by-email/${encodeURIComponent(user.email)}`, { validateStatus: () => true });
+            const result = response.data;
+            if (response.status === 200 && result.success && result.data.submittedAt) {
               setHasSubmittedApplication(true);
               if (result.data.status === 'verified') {
                 setIsApplicationVerified(true);

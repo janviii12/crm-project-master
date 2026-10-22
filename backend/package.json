@@ -1,1 +1,44 @@
-{"type":"module","name":"backend","version":"1.0.0","main":"server.js","scripts":{"test":"echo \"Error: no test specified\" && exit 1","start":"node server.js"},"keywords":[],"author":"","license":"ISC","description":"","dependencies":{"bcrypt":"^6.0.0","bcryptjs":"^3.0.2","cookie-parser":"^1.4.7","cors":"^2.8.5","date-fns":"^4.1.0","dotenv":"^17.2.3","exceljs":"^4.4.0","express":"^5.1.0","express-rate-limit":"^8.2.0","io":"^1.5.7","jsonwebtoken":"^9.0.2","moment":"^2.30.1","mongoose":"^8.19.1","multer":"^2.0.2","node-cron":"^4.2.1","nodemailer":"^7.0.9","pdf-poppler":"^0.2.3","pdfkit":"^0.17.2","react-big-calendar":"^1.19.4","slugify":"^1.6.6","socket.io":"^4.8.1","socket.io-client":"^4.8.1","tesseract.js":"^7.0.0","uuid":"^13.0.0","web-push":"^3.6.7","winston":"^3.18.3","winston-daily-rotate-file":"^5.0.0","xlsx":"^0.18.5"}}
+{
+    "type": "module",
+    "name": "backend",
+    "version": "1.0.0",
+    "main": "server.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start": "node server.js"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "description": "",
+    "dependencies": {
+        "bcrypt": "^6.0.0",
+        "bcryptjs": "^3.0.2",
+        "cookie-parser": "^1.4.7",
+        "cors": "^2.8.5",
+        "date-fns": "^4.1.0",
+        "dotenv": "^17.2.3",
+        "exceljs": "^4.4.0",
+        "express": "^5.1.0",
+        "express-rate-limit": "^8.2.0",
+        "io": "^1.5.7",
+        "jsonwebtoken": "^9.0.2",
+        "moment": "^2.30.1",
+        "mongoose": "^8.19.1",
+        "multer": "^2.0.2",
+        "node-cron": "^4.2.1",
+        "nodemailer": "^7.0.9",
+        "pdf-poppler": "^0.2.3",
+        "pdfkit": "^0.17.2",
+        "react-big-calendar": "^1.19.4",
+        "slugify": "^1.6.6",
+        "socket.io": "^4.8.1",
+        "socket.io-client": "^4.8.1",
+        "tesseract.js": "^7.0.0",
+        "uuid": "^13.0.0",
+        "web-push": "^3.6.7",
+        "winston": "^3.18.3",
+        "winston-daily-rotate-file": "^5.0.0",
+        "xlsx": "^0.18.5"
+    }
+}

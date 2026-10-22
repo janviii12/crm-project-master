@@ -20,6 +20,7 @@ interface Interaction {
   clientName: string;
   contactNumber: string;
   clientStatus: 'existing' | 'potential';
+  clientType?: string;
   interactionType: 'Call' | 'WhatsApp' | 'Email' | 'Meeting';
   handledBy: {
     _id: string;
@@ -39,6 +40,7 @@ interface Conversation {
   clientName: string;
   contactNumber: string;
   clientStatus: 'existing' | 'potential';
+  clientType?: string;
   lastInteractionDate: string;
   totalInteractions: number;
   interactions: Interaction[];
@@ -51,6 +53,7 @@ const Interactions = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -68,7 +71,8 @@ const Interactions = () => {
   const [editFormData, setEditFormData] = useState({
     clientName: '',
     contactNumber: '',
-    clientStatus: 'potential'
+    clientStatus: 'potential',
+    clientType: 'Luke Warm'
   });
       const [pagination, setPagination] = useState({
   currentPage: 1,
@@ -95,7 +99,7 @@ const fetchConversations = async () => {
 
     const params = new URLSearchParams({
       page: page.toString(),
-      limit: '10',
+      limit: pageSize.toString(),
       search: searchTerm,
       ...(startDate && { startDate }),
       ...(endDate && { endDate }),
@@ -252,7 +256,8 @@ const fetchConversations = async () => {
     setEditFormData({
       clientName: conversation.clientName,
       contactNumber: conversation.contactNumber,
-      clientStatus: conversation.clientStatus
+      clientStatus: conversation.clientStatus,
+      clientType: conversation.clientType || 'Luke Warm'
     });
   };
 
@@ -273,7 +278,8 @@ const fetchConversations = async () => {
           body: JSON.stringify({
             clientName: editFormData.clientName,
             newContactNumber: editFormData.contactNumber,
-            clientStatus: editFormData.clientStatus
+            clientStatus: editFormData.clientStatus,
+            clientType: editFormData.clientStatus === 'potential' ? editFormData.clientType : ''
           })
         }
       );
@@ -362,7 +368,7 @@ const fetchConversations = async () => {
     if (isStaff) {
       fetchConversations();
     }
-  }, [page, isStaff]);
+  }, [page, pageSize, isStaff]);
 
   const getInteractionTypeColor = (type: string) => {
     switch (type) {
@@ -371,6 +377,16 @@ const fetchConversations = async () => {
       case 'Email': return 'bg-purple-100 text-purple-800';
       case 'Meeting': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Client name colour for "Yet to be Client" leads: Luke Warm -> pink, Warm -> yellow, Hot -> green
+  const getClientNameColor = (clientStatus: string, clientType?: string) => {
+    if (clientStatus !== 'potential') return '';
+    switch (clientType) {
+      case 'Hot': return 'text-green-600';
+      case 'Warm': return 'text-yellow-600';
+      default: return 'text-pink-500'; // Luke Warm (default, also for older records without a type)
     }
   };
 
@@ -677,7 +693,9 @@ const fetchConversations = async () => {
                           <p className="text-sm text-gray-500">{new Date(conversation.lastInteractionDate).toLocaleTimeString('en-US', { hour12: true })}</p>
                         </div>
                       </TableCell>
-                      <TableCell className="font-medium">{conversation.clientName}</TableCell>
+                      <TableCell className={`font-medium ${getClientNameColor(conversation.clientStatus, conversation.clientType)}`}>
+                        {conversation.clientName}
+                      </TableCell>
                       <TableCell>{conversation.contactNumber}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -739,7 +757,7 @@ const fetchConversations = async () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label>
                     <div className="p-3 bg-gray-50 rounded-lg">
-                      <p className="font-medium">{viewingConversation.clientName}</p>
+                      <p className={`font-medium ${getClientNameColor(viewingConversation.clientStatus, viewingConversation.clientType)}`}>{viewingConversation.clientName}</p>
                     </div>
                   </div>
                   <div>
@@ -928,6 +946,24 @@ const fetchConversations = async () => {
                     </SelectContent>
                   </Select>
                 </div>
+                {editFormData.clientStatus === 'potential' && (
+                  <div>
+                    <Label htmlFor="editClientType">Client Type</Label>
+                    <Select
+                      value={editFormData.clientType}
+                      onValueChange={(value) => setEditFormData({ ...editFormData, clientType: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select client type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Luke Warm">Luke Warm</SelectItem>
+                        <SelectItem value="Warm">Warm</SelectItem>
+                        <SelectItem value="Hot">Hot</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="flex justify-end gap-3 pt-4">
                   <Button
                     variant="outline"
@@ -960,6 +996,7 @@ const fetchConversations = async () => {
                   clientName: addingInteraction.clientName,
                   contactNumber: addingInteraction.contactNumber,
                   clientStatus: addingInteraction.clientStatus,
+                  clientType: addingInteraction.clientType,
                   interactionType: 'Call' as const,
                   notes: '',
                   date: new Date().toISOString()
@@ -975,7 +1012,7 @@ const fetchConversations = async () => {
         </Dialog>
 
         {/* Pagination */}
-        {pagination.totalPages > 1 && (
+        {pagination.totalItems > 0 && (
           <Card className="mt-6">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -1007,8 +1044,29 @@ const fetchConversations = async () => {
                     <span className="text-sm">→</span>
                   </Button>
                 </div>
-                <div className="text-sm text-gray-500">
-                  Showing {conversations.length} conversations
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Rows per page</span>
+                    <Select
+                      value={pageSize.toString()}
+                      onValueChange={(value) => {
+                        setPageSize(parseInt(value));
+                        setPage(1);
+                      }}
+                    >
+                      <SelectTrigger className="w-[80px] h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[10, 25, 50, 100].map((size) => (
+                          <SelectItem key={size} value={size.toString()}>{size}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    Showing {conversations.length} of {pagination.totalItems} conversations
+                  </div>
                 </div>
               </div>
             </CardContent>
