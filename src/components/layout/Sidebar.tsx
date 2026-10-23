@@ -34,7 +34,7 @@ const Sidebar = () => {
 
   // Check if client has submitted an application
   useEffect(() => {
-    if (user?.roles && user.roles.includes('client')) {
+     if (user?.roles && user.roles.some(role => role.toLowerCase() === 'client')) {
       // Check API to determine if application has been submitted
       if (user?.email) {
         const checkApplicationStatus = async () => {
