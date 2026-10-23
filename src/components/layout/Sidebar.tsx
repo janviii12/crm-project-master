@@ -82,8 +82,7 @@ const Sidebar = () => {
       path: '/begin-registration',
       label: 'Begin Registration',
       icon: FileText,
-      roles: ['client'],
-      condition: () => !hasSubmittedApplication // Hide if application submitted
+      roles: ['client']
     },
     {
       path: '/application-status',
@@ -112,7 +111,7 @@ const Sidebar = () => {
   ];
 
   const filteredMenuItems = menuItems.filter(item => {
-    if (user && user.roles && user.roles.some(role => item.roles.includes(role))) {
+    if (user && user.roles && user.roles.some(role => item.roles.includes(role.toLowerCase()))) {
       // Check additional conditions if they exist
       if (item.condition && !item.condition()) {
         return false;
