@@ -29,7 +29,7 @@ const CustomerDetails = () => {
         remarks
       });
       if (response.data.success) {
-        alert(`✅ Email sent successfully to ${customer.email} (ID: ${response.data.messageId})`);
+        alert(`✅ Email sent successfully from ${response.data.from} to ${customer.email}`);
       }
     } catch (error: any) {
       console.error('Error sending email:', error.response?.data || error.message);
@@ -79,7 +79,7 @@ const CustomerDetails = () => {
 
   const handleApprove = async () => {
     try {
-      const response = await axiosInstance.put(`$/api/customers/${id}/status`, {
+      const response = await axiosInstance.put(`/api/customers/${id}/status`, {
         status: 'verified'
       });
       if (response.data.success) {

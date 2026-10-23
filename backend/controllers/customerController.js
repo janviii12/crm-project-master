@@ -577,12 +577,22 @@ export const sendEmailNotification = async (req, res) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Status email sent successfully:', info.messageId, 'to:', customer.email);
+    console.log('✅ Status email sent successfully:', info.messageId, 'to:', customer.email, 'accepted:', info.accepted, 'rejected:', info.rejected, 'response:', info.response);
+
+    if (!info.accepted || info.accepted.length === 0 || (info.rejected && info.rejected.length > 0)) {
+      return res.status(502).json({
+        success: false,
+        message: `Email was rejected by the mail server for ${customer.email}`,
+        rejected: info.rejected,
+        response: info.response
+      });
+    }
 
     return res.status(200).json({
       success: true,
       message: 'Email sent successfully',
-      messageId: info.messageId
+      messageId: info.messageId,
+      from: process.env.EMAIL_USER
     });
 
   } catch (err) {
