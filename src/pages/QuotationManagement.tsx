@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { servicesData } from '@/data/servicesData';
 import QuotationForm from '@/components/quotation/QuotationForm';
 import QuotationTable from '@/components/quotation/QuotationTable';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
 const QuotationManagement = () => {
   const navigate = useNavigate();
@@ -231,10 +232,15 @@ const QuotationManagement = () => {
   );
 
   if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading...</div>;
+    return (
+      <DashboardLayout>
+        <div className="flex justify-center items-center h-64">Loading...</div>
+      </DashboardLayout>
+    );
   }
 
   return (
+    <DashboardLayout>
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Quotation Management</h1>
@@ -334,6 +340,7 @@ const QuotationManagement = () => {
         </DialogContent>
       </Dialog>
     </div>
+    </DashboardLayout>
   );
 };
 

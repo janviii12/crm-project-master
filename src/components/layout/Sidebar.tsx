@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import axiosInstance from '@/lib/axiosInstance';
 
@@ -65,6 +65,19 @@ const Sidebar = () => {
   }, [user, location.pathname]);
 
   const isActive = (path: string) => location.pathname === path;
+
+  // Each page mounts its own Sidebar, so the nav scroll resets on navigation.
+  // Restore the previous scroll position, then make sure the active item is visible.
+  const navRef = useRef<HTMLElement>(null);
+  const activeLinkRef = useRef<HTMLAnchorElement>(null);
+
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const saved = sessionStorage.getItem('sidebarScrollTop');
+    if (saved) nav.scrollTop = parseInt(saved, 10);
+    activeLinkRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [location.pathname, user]);
 
   const menuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'executive', 'client', 'developer'] },
@@ -151,10 +164,15 @@ const Sidebar = () => {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          <nav
+            ref={navRef}
+            onScroll={(e) => sessionStorage.setItem('sidebarScrollTop', String(e.currentTarget.scrollTop))}
+            className="flex-1 p-4 space-y-2 overflow-y-auto"
+          >
             {filteredMenuItems.map((item) => (
               <Link
                 key={item.path}
+                ref={isActive(item.path) ? activeLinkRef : undefined}
                 to={item.path}
                 onClick={() => setIsOpen(false)}
                 className={cn(

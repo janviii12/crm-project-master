@@ -10,6 +10,7 @@ import { Download, TrendingUp, TrendingDown, Users, DollarSign, Plus, Eye } from
 import { useToast } from '@/hooks/use-toast';
 import AddFundsForm from '@/components/AddFundsForm';
 import TransactionHistoryModal from '@/components/TransactionHistoryModal';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
 const BossExpenseReport = () => {
   const { user } = useAuth();
@@ -140,19 +141,22 @@ const BossExpenseReport = () => {
 
   if (!user?.roles?.includes('admin')) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-red-500">Access denied. Admin privileges required.</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Card className="w-full max-w-md">
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <p className="text-red-500">Access denied. Admin privileges required.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
+    <DashboardLayout>
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
@@ -411,6 +415,7 @@ const BossExpenseReport = () => {
         managerId={selectedManagerId}
       />
     </div>
+    </DashboardLayout>
   );
 };
 
