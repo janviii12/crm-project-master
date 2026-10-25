@@ -33,9 +33,13 @@ const followUpSchema = new mongoose.Schema({
     default: 30,
     enum: [15, 30, 60, 120, 1440] // 15min, 30min, 1hr, 2hr, 1day
   },
+  reminderSent: {
+    type: Boolean,
+    default: false
+  },
   status: {
     type: String,
-    enum: ['pending', 'in-progress', 'blocked', 'completed'],
+    enum: ['pending', 'in-progress', 'blocked', 'completed', 'missed'],
     default: 'pending'
   },
   priority: {

@@ -16,6 +16,7 @@ interface InteractionFormProps {
     clientName: string;
     contactNumber: string;
     clientStatus: string;
+    clientType?: string;
     interactionType: string;
     notes: string;
     date: string;
@@ -38,6 +39,7 @@ const InteractionForm = ({ onSuccess, onCancel, editData, quickAdd }: Interactio
     clientName: editData?.clientName || '',
     contactNumber: editData?.contactNumber || '',
     clientStatus: editData?.clientStatus || 'potential',
+    clientType: editData?.clientType || 'Luke Warm',
     interactionType: editData?.interactionType || '',
     notes: editData?.notes || '',
     clientMessage: editData?.clientMessage || '',
@@ -64,6 +66,7 @@ const InteractionForm = ({ onSuccess, onCancel, editData, quickAdd }: Interactio
         clientName: editData.clientName || '',
         contactNumber: editData.contactNumber || '',
         clientStatus: editData.clientStatus || 'potential',
+        clientType: editData.clientType || 'Luke Warm',
         interactionType: editData.interactionType || '',
         notes: editData.notes || '',
         clientMessage: editData.clientMessage || '',
@@ -149,6 +152,7 @@ const InteractionForm = ({ onSuccess, onCancel, editData, quickAdd }: Interactio
         formDataToSend.append('clientName', clientNameEl?.value || formData.clientName || 'Unknown');
         formDataToSend.append('contactNumber', contactNumberEl?.value || formData.contactNumber || 'Unknown');
         formDataToSend.append('clientStatus', clientStatusEl?.value || formData.clientStatus || 'potential');
+        formDataToSend.append('clientType', formData.clientType);
         formDataToSend.append('interactionType', formData.interactionType);
         formDataToSend.append('notes', notesEl?.value || formData.notes || '');
         formDataToSend.append('clientMessage', formData.clientMessage || '');
@@ -255,6 +259,23 @@ const InteractionForm = ({ onSuccess, onCancel, editData, quickAdd }: Interactio
     setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Client Type dropdown (Luke Warm / Warm / Hot) only applies to "Yet to be Client"
+  const clientTypeField = formData.clientStatus === 'potential' && (
+    <div>
+      <Label htmlFor="clientType">Client Type</Label>
+      <Select value={formData.clientType} onValueChange={(value) => handleInputChange('clientType', value)}>
+        <SelectTrigger>
+          <SelectValue placeholder="Select client type" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="Luke Warm">Luke Warm</SelectItem>
+          <SelectItem value="Warm">Warm</SelectItem>
+          <SelectItem value="Hot">Hot</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
   // Determine which mode we're in
   const isNewInteraction = !quickAdd && !editData?._id;
   const isQuickAdd = quickAdd;
@@ -328,6 +349,8 @@ const InteractionForm = ({ onSuccess, onCancel, editData, quickAdd }: Interactio
             </div>
           </div>
 
+          {clientTypeField}
+
           {/* Row 3: Date and Time side by side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -399,6 +422,8 @@ const InteractionForm = ({ onSuccess, onCancel, editData, quickAdd }: Interactio
       {/* QuickAdd mode - simplified form for adding new interaction in conversation */}
       {isQuickAdd && (
         <>
+          {clientTypeField}
+
           {/* Row 1: Interaction Type and Date side by side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -501,6 +526,8 @@ const InteractionForm = ({ onSuccess, onCancel, editData, quickAdd }: Interactio
               </Select>
             </div>
           </div>
+
+          {clientTypeField}
 
           {/* Row 2: Date and Time side by side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

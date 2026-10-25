@@ -86,7 +86,8 @@ const CalendarPage: React.FC = () => {
 
   const fetchFollowUps = async () => {
     try {
-      const response = await axiosInstance.get('/api/followups');
+      // Backend paginates (default limit 10, oldest first), so request all follow-ups
+      const response = await axiosInstance.get('/api/followups', { params: { limit: 1000 } });
       setFollowUps(response.data.data);
     } catch (error) {
       console.error('Error fetching follow-ups:', error);
@@ -213,6 +214,15 @@ const CalendarPage: React.FC = () => {
       html: `<div style="background-color: ${backgroundColor}; color: white; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 500;">${eventInfo.event.title}</div>`
     };
   };
+
+  const getFollowUpDateTime = (f: FollowUp) =>
+    new Date(`${f.date.split('T')[0]}T${f.time || '00:00'}`).getTime();
+
+  // Keep today's follow-ups listed until the end of the day, even once their time has passed
+  const startOfToday = new Date().setHours(0, 0, 0, 0);
+  const upcomingReminders = followUps
+    .filter(f => (f.status === 'pending' || f.status === 'missed') && getFollowUpDateTime(f) >= startOfToday)
+    .sort((a, b) => getFollowUpDateTime(a) - getFollowUpDateTime(b));
 
   const events = followUps.map(followUp => ({
     ...followUp,
@@ -358,20 +368,23 @@ const CalendarPage: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {followUps
-                .filter(f => f.status === 'pending')
-                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+              {upcomingReminders
                 .slice(0, 5)
                 .map((followUp) => (
                   <div key={followUp._id} className="mb-3 p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center justify-between mb-1">
                       <h4 className="font-medium text-sm">{followUp.title}</h4>
-                      <Badge variant={
-                        followUp.priority === 'high' ? 'destructive' :
-                        followUp.priority === 'medium' ? 'default' : 'secondary'
-                      }>
-                        {followUp.priority}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        {followUp.status === 'missed' && (
+                          <Badge variant="outline" className="border-red-500 text-red-600">missed</Badge>
+                        )}
+                        <Badge variant={
+                          followUp.priority === 'high' ? 'destructive' :
+                          followUp.priority === 'medium' ? 'default' : 'secondary'
+                        }>
+                          {followUp.priority}
+                        </Badge>
+                      </div>
                     </div>
                     <p className="text-xs text-gray-600 mb-1">{followUp.clientId?.name || 'No Client'}</p>
                     <div className="flex items-center text-xs text-gray-500">
@@ -382,7 +395,7 @@ const CalendarPage: React.FC = () => {
                     </div>
                   </div>
                 ))}
-              {followUps.filter(f => f.status === 'pending').length === 0 && (
+              {upcomingReminders.length === 0 && (
                 <p className="text-sm text-gray-500 text-center">No upcoming reminders</p>
               )}
             </CardContent>

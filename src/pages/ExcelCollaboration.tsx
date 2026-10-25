@@ -12,6 +12,7 @@ import axiosInstance from '@/lib/axiosInstance';
 import { toast } from 'sonner';
 import ExcelEditor from '@/components/ExcelEditor';
 import { useNavigate } from 'react-router-dom';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
 interface ExcelFile {
   _id: string;
@@ -201,17 +202,19 @@ const ExcelCollaboration = () => {
   };
 
   if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading...</div>;
+    return (
+      <DashboardLayout>
+        <div className="flex justify-center items-center h-64">Loading...</div>
+      </DashboardLayout>
+    );
   }
 
   return (
+    <DashboardLayout>
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Excel Collaboration</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/dashboard')}>
-            Dashboard
-          </Button>
           <input
             type="file"
             accept=".xlsx"
@@ -386,6 +389,7 @@ const ExcelCollaboration = () => {
         />
       )}
     </div>
+    </DashboardLayout>
   );
 };
 

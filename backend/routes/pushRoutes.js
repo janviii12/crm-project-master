@@ -1,5 +1,5 @@
 import express from 'express';
-import pushRoutes from './routes/pushRoutes.js';
+//import pushRoutes from './routes/pushRoutes.js';
 import { subscribeToPush, unsubscribeFromPush } from '../controllers/pushController.js';
 import { authenticateToken } from '../middleware/auth.js';
 

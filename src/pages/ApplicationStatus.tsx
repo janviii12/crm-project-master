@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle, Clock, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { API_BASE_URL } from '@/config';
+import axiosInstance from '@/lib/axiosInstance';
 
 interface CustomerData {
   _id: string;
@@ -37,10 +37,11 @@ const ApplicationStatus = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/customers/by-email/${encodeURIComponent(user.email)}`);
-      const result = await response.json();
+      // Authenticated request; resolve on any status so "not found" is handled below, not as a network error
+      const response = await axiosInstance.get(`/api/customers/by-email/${encodeURIComponent(user.email)}`, { validateStatus: () => true });
+      const result = response.data;
 
-      if (response.ok && result.success) {
+      if (response.status === 200 && result.success) {
         setCustomerData(result.data);
         // If status is verified, redirect to next steps page
         if (result.data.status === 'verified') {

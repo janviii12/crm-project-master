@@ -19,6 +19,8 @@ import Typed from 'typed.js';
 import axios from 'axios';
 import { API_BASE_URL } from '@/config';
 
+const DASHBOARD_REFRESH_MS = 5 * 60 * 1000;
+
 const Dashboard = () => {
   const { user } = useAuth();
   const { playEmotion } = useAIEmotion();
@@ -39,7 +41,10 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [recentActivities, setRecentActivities] = useState([]);
-  const [welcomePlayed, setWelcomePlayed] = useState(false);
+  const welcomePlayedRef = useRef(false);
+  // Latest playEmotion without making it an effect dependency (it is recreated every render)
+  const playEmotionRef = useRef(playEmotion);
+  playEmotionRef.current = playEmotion;
   
   // Reminder popup state
   const [showReminderPopup, setShowReminderPopup] = useState(false);
@@ -97,13 +102,16 @@ const Dashboard = () => {
     }
   }, [user]);
 
+  // Register for push notifications once per login (subscribe skips the API if already synced)
+  useEffect(() => {
+    if (user?.id) {
+      subscribe(user.id);
+    }
+  }, [user?.id, subscribe]);
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        if (user) {
-          await subscribe();
-        }
-
         const customersResponse = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/customers`);
         if (customersResponse.data.success) {
           const customers = customersResponse.data.data;
@@ -154,10 +162,10 @@ const Dashboard = () => {
         console.error('Error fetching dashboard data:', error);
       } finally {
         setLoading(false);
-        if (!welcomePlayed) {
+        if (!welcomePlayedRef.current) {
+          welcomePlayedRef.current = true;
           setTimeout(() => {
-            playEmotion("success");
-            setWelcomePlayed(true);
+            playEmotionRef.current("success");
             if (welcomeRef.current) {
               const typed = new Typed(welcomeRef.current, {
                 strings: [`Welcome back, ${user?.name || 'User'}! 👋`],
@@ -170,10 +178,21 @@ const Dashboard = () => {
       }
     };
 
-    if (user) {
-      fetchDashboardData();
-    }
-  }, [user, playEmotion, welcomePlayed, subscribe]);
+    if (!user) return;
+
+    fetchDashboardData();
+
+    // Refresh stats every 5 minutes, skipping while the tab is in the background
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchDashboardData();
+      }
+    }, DASHBOARD_REFRESH_MS);
+
+    return () => clearInterval(interval);
+    // Re-run only when the logged-in user changes, not on every new `user` object
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const fetchReminderDates = async () => {
     try {
