@@ -76,7 +76,8 @@ const BossExpenseReport = () => {
       const result = await response.json();
 
       if (response.ok && result.success) {
-        setAllWallets(result.data);
+        // Skip wallets whose manager no longer exists (populated managerId is null)
+        setAllWallets(result.data.filter(wallet => wallet.managerId));
       }
     } catch (error) {
       console.error('Error fetching wallets:', error);

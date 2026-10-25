@@ -215,9 +215,6 @@ const ExcelCollaboration = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Excel Collaboration</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/dashboard')}>
-            Dashboard
-          </Button>
           <input
             type="file"
             accept=".xlsx"

@@ -245,10 +245,6 @@ const QuotationManagement = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Quotation Management</h1>
         <div className="flex gap-2">
-          <Button onClick={() => navigate('/dashboard')}>
-            <Home className="w-4 h-4 mr-2" />
-            Dashboard
-          </Button>
           <Button onClick={() => setIsFormOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             New Quotation
